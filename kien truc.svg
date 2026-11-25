@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1825.4599999999996 2575.0370000000003" width="1825.4599999999996" height="2575.0370000000003" style="--bg:#18181B;--fg:#F4F4F5;--line:#71717A;--muted:#A1A1AA;--surface:#27272A;--border:#3F3F46;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="STAGE1" data-label="GIAI ĐOẠN 1: THU THẬP NGỮ CẢNH TỰ ĐỘNG (OUTER LOOP)">
+  <rect x="273.75394999999986" y="40" width="767.377" height="266.70000000000005" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="273.75394999999986" y="40" width="767.377" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="285.75394999999986" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">GIAI ĐOẠN 1: THU THẬP NGỮ CẢNH TỰ ĐỘNG (OUTER LOOP)</text>
+</g>
+<g class="subgraph" data-id="STAGE2" data-label="GIAI ĐOẠN 2: THAM MƯU TRƯỞNG ĐIỀU PHỐI (CHIEF OF STAFF)">
+  <rect x="605.4249499999999" y="366.70000000000005" width="398.5079999999999" height="266.70000000000005" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="605.4249499999999" y="366.70000000000005" width="398.5079999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="617.4249499999999" y="380.70000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">GIAI ĐOẠN 2: THAM MƯU TRƯỞNG ĐIỀU PHỐI (CHIEF OF STAFF)</text>
+</g>
+<g class="subgraph" data-id="STAGE3" data-label="GIAI ĐOẠN 3: THỰC THI TRONG MÔI TRƯỜNG RÀNG BUỘC (INNER LOOP)">
+  <rect x="40" y="693.4000000000001" width="1129.1659999999997" height="317.4" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="693.4000000000001" width="1129.1659999999997" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="707.4000000000001" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">GIAI ĐOẠN 3: THỰC THI TRONG MÔI TRƯỜNG RÀNG BUỘC (INNER LOOP)</text>
+</g>
+<g class="subgraph" data-id="STAGE4" data-label="GIAI ĐOẠN 4: KIỂM ĐỊNH ĐỘC LẬP &amp; TỰ ĐỘNG MERGE (XUYÊN ĐÊM KHI ĐANG NGỦ)">
+  <rect x="639.9317499999997" y="1070.8000000000002" width="874.4362499999997" height="718.531" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="639.9317499999997" y="1070.8000000000002" width="874.4362499999997" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="651.9317499999997" y="1084.8000000000002" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">GIAI ĐOẠN 4: KIỂM ĐỊNH ĐỘC LẬP &amp; TỰ ĐỘNG MERGE (XUYÊN ĐÊM KHI ĐANG NGỦ)</text>
+</g>
+<g class="subgraph" data-id="STAGE5" data-label="GIAI ĐOẠN 5: BUỔI SÁNG KHI NGỦ DẬY - NÂNG CẤP MÔI TRƯỜNG">
+  <rect x="1073.4749999999995" y="1849.3310000000001" width="496.616" height="659.706" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="1073.4749999999995" y="1849.3310000000001" width="496.616" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="1085.4749999999995" y="1863.3310000000001" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">GIAI ĐOẠN 5: BUỔI SÁNG KHI NGỦ DẬY - NÂNG CẤP MÔI TRƯỜNG</text>
+</g>
+<polyline class="edge" data-from="Buffer" data-to="Coordinator" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="804.6789499999998,290.70000000000005 804.6789499999998,410.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SpawnSub" data-to="AgentPerf" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="804.6789499999998,628.4 804.6789499999998,682.9000000000001 181.45599999999996,682.9000000000001 181.45599999999996,737.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SpawnSub" data-to="AgentBug" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="804.6789499999998,628.4 804.6789499999998,682.9000000000001 464.07299999999987,682.9000000000001 464.07299999999987,737.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SpawnSub" data-to="AgentGarden" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="804.6789499999998,628.4 804.6789499999998,682.9000000000001 748.9129999999999,682.9000000000001 748.9129999999999,737.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SpawnSub" data-to="AgentExp" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="804.6789499999998,628.4 804.6789499999998,682.9000000000001 1023.3789999999998,682.9000000000001 1023.3789999999998,737.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CreatePR" data-to="Verifiers" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="748.9129999999999,994.8000000000001 748.9129999999999,1610.6310000000003 844.7432499999998,1610.6310000000003 844.7432499999998,1634.6310000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="AutoMerge" data-to="WakeUp" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1320.3009999999995,1586.6310000000003 1320.3009999999995,1893.3310000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="HardenEnv" data-to="DuneEnv" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="Nâng cấp vĩnh viễn gian bếp (Không sửa bằng tay)" points="1443.4549999999995,2493.0370000000003 1443.4549999999995,2527.0370000000003 1664.3679999999995,2527.0370000000003 1664.3679999999995,675.4000000000001 1152.1659999999997,675.4000000000001 1152.1659999999997,798.3000000000002 826.3753333333332,798.3000000000002 826.3753333333332,822.3000000000002" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Slack" data-to="Grokbot" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="855.2149499999998,120.9 855.2149499999998,144.9 565.5584499999999,144.9 565.5584499999999,168.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Linear" data-to="Grokbot" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="653.7374499999999,120.9 653.7374499999999,144.9 565.5584499999999,144.9 565.5584499999999,168.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="XSocial" data-to="Grokbot" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="411.8754499999999,120.9 411.8754499999999,144.9 565.5584499999999,144.9 565.5584499999999,168.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CodeAudit" data-to="Buffer" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="867.4414499999998,205.8 867.4414499999998,229.8 804.6789499999999,229.8 804.6789499999999,253.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Grokbot" data-to="Buffer" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="565.5584499999999,205.8 565.5584499999999,229.8 804.6789499999999,229.8 804.6789499999999,253.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Coordinator" data-to="Plan" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="804.6789499999998,447.6 804.6789499999998,495.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Plan" data-to="SpawnSub" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="804.6789499999998,532.5 804.6789499999998,591.5" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="AgentPerf" data-to="DuneEnv" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="181.45599999999996,774.3000000000001 181.45599999999996,798.3000000000001 671.4506666666666,798.3000000000001 671.4506666666666,822.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="AgentBug" data-to="DuneEnv" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="464.07299999999987,774.3000000000001 464.07299999999987,786.3000000000001 710.1818333333332,786.3000000000001 710.1818333333332,822.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="AgentGarden" data-to="DuneEnv" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="748.9129999999999,774.3000000000001 748.9129999999999,822.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="AgentExp" data-to="DuneEnv" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1023.3789999999998,774.3000000000001 1023.3789999999998,786.3000000000001 787.6441666666665,786.3000000000001 787.6441666666665,822.3000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DuneEnv" data-to="CreatePR" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="748.9129999999999,909.9000000000001 748.9129999999999,957.9000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Verifiers" data-to="RunApp" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="844.7432499999998,1688.431 844.7432499999998,1700.431 925.7714166666664,1700.431 925.7714166666664,1736.431" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="RunApp" data-to="CheckResult" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1017.3127499999997,1736.431 1017.3127499999997,1700.431 1131.2339999999997,1700.431 1131.2339999999997,1433.431" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CheckResult" data-to="SelfHeal" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="❌ Thất bại" points="1051.5762499999996,1353.77325 1051.5762499999996,1445.431 940.5734999999997,1445.431 940.5734999999997,1549.7310000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SelfHeal" data-to="Verifiers" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="940.5734999999997,1586.6310000000003 940.5734999999997,1610.6310000000003 844.7432499999998,1610.6310000000003 844.7432499999998,1634.6310000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CheckResult" data-to="AutoMerge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="✅ Vượt qua" points="1210.8917499999998,1353.77325 1210.8917499999998,1445.431 1320.3009999999995,1445.431 1320.3009999999995,1549.7310000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="WakeUp" data-to="Sampling" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1320.3009999999995,1930.2310000000002 1320.3009999999995,1978.2310000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Sampling" data-to="DetectFlaw" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="1320.3009999999995,2015.131 1320.3009999999995,2063.1310000000008" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DetectFlaw" data-to="HardenEnv" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Có lỗi lọt qua" points="1357.9686666666662,2251.4693333333335 1357.9686666666662,2301.137 1443.4549999999995,2301.137 1443.4549999999995,2405.437" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="DetectFlaw" data-to="ContinueCycle" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Hoàn hảo" points="1282.6333333333328,2251.469333333334 1282.6333333333328,2301.137 1197.1469999999995,2301.137 1197.1469999999995,2405.437" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="HardenEnv" data-to="DuneEnv" data-label="Nâng cấp vĩnh viễn gian bếp (Không sửa bằng tay)">
+  <rect x="1538.3679999999995" y="1770.031" width="251.09199999999998" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1663.9139999999995" y="1785.181" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Nâng cấp vĩnh viễn gian bếp (Không sửa bằng tay)</text>
+</g>
+<g class="edge-label" data-from="CheckResult" data-to="SelfHeal" data-label="❌ Thất bại">
+  <rect x="906.0734999999997" y="1476.431" width="68.73400000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="940.4404999999997" y="1491.5810000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">❌ Thất bại</text>
+</g>
+<g class="edge-label" data-from="CheckResult" data-to="AutoMerge" data-label="✅ Vượt qua">
+  <rect x="1283.8009999999995" y="1476.431" width="72.298" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1319.9499999999994" y="1491.5810000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">✅ Vượt qua</text>
+</g>
+<g class="edge-label" data-from="DetectFlaw" data-to="HardenEnv" data-label="Có lỗi lọt qua">
+  <rect x="1405.4549999999995" y="2332.137" width="75.268" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1443.0889999999995" y="2347.2870000000003" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Có lỗi lọt qua</text>
+</g>
+<g class="edge-label" data-from="DetectFlaw" data-to="ContinueCycle" data-label="Hoàn hảo">
+  <rect x="1165.6469999999995" y="2332.137" width="62.2" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="1196.7469999999994" y="2347.2870000000003" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Hoàn hảo</text>
+</g>
+<g class="node" data-id="class" data-label="class" data-shape="rectangle">
+  <rect x="171.19994999999983" y="591.5" width="74.554" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="208.47694999999982" y="609.95" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">class</text>
+</g>
+<g class="node" data-id="Slack" data-label="💬 Kênh Slack nội bộ" data-shape="rectangle">
+  <rect x="773.4779499999999" y="84" width="163.474" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="855.2149499999998" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">💬 Kênh Slack nội bộ</text>
+</g>
+<g class="node" data-id="Grokbot" data-label="🤖 Grokbot / Connectors &amp; MCPs" data-shape="rectangle">
+  <rect x="449.3649499999999" y="168.9" width="232.38699999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="565.5584499999999" y="187.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🤖 Grokbot / Connectors &amp; MCPs</text>
+</g>
+<g class="node" data-id="Linear" data-label="🎯 Linear / Bug Tracker" data-shape="rectangle">
+  <rect x="561.9969499999999" y="84" width="183.481" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="653.7374499999999" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🎯 Linear / Bug Tracker</text>
+</g>
+<g class="node" data-id="XSocial" data-label="🌐 Mạng Xã Hội X / User Feedback" data-shape="rectangle">
+  <rect x="289.75394999999986" y="84" width="244.243" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="411.8754499999999" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🌐 Mạng Xã Hội X / User Feedback</text>
+</g>
+<g class="node" data-id="CodeAudit" data-label="🧹 Cron quét Code (React Footguns/Tech Debt)" data-shape="rectangle">
+  <rect x="709.7519499999999" y="168.9" width="315.37899999999996" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="867.4414499999998" y="187.35000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🧹 Cron quét Code (React Footguns/Tech Debt)</text>
+</g>
+<g class="node" data-id="Buffer" data-label="📋 Buffer &amp; Event Queue (Gom cụm nhận diện Pattern)" data-shape="rectangle">
+  <rect x="631.4284499999999" y="253.8" width="346.5009999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="804.6789499999999" y="272.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">📋 Buffer &amp; Event Queue (Gom cụm nhận diện Pattern)</text>
+</g>
+<g class="node" data-id="Coordinator" data-label="🧠 Coordinator Agent (Cursor Projects trên Cloud)" data-shape="rectangle">
+  <rect x="637.7269499999999" y="410.70000000000005" width="333.90399999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="804.6789499999999" y="429.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🧠 Coordinator Agent (Cursor Projects trên Cloud)</text>
+</g>
+<g class="node" data-id="Plan" data-label="Nhìn tổng thể (Forest View) &amp; Gom cụm nguyên nhân gốc" data-shape="rectangle">
+  <rect x="621.4249499999999" y="495.6" width="366.5079999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="804.6789499999998" y="514.0500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Nhìn tổng thể (Forest View) &amp; Gom cụm nguyên nhân gốc</text>
+</g>
+<g class="node" data-id="SpawnSub" data-label="Khởi tạo 30+ Sub-Agents theo chuyên trách" data-shape="rectangle">
+  <rect x="658.8454499999998" y="591.5" width="291.6669999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="804.6789499999998" y="609.95" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Khởi tạo 30+ Sub-Agents theo chuyên trách</text>
+</g>
+<g class="node" data-id="AgentPerf" data-label="⚡ Nhóm 1: Performance Optimization" data-shape="rectangle">
+  <rect x="56" y="737.4000000000001" width="250.91199999999992" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="181.45599999999996" y="755.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">⚡ Nhóm 1: Performance Optimization</text>
+</g>
+<g class="node" data-id="AgentBug" data-label="🐛 Nhóm 2: Bug Fixes &amp; Reproduction" data-shape="rectangle">
+  <rect x="334.91199999999986" y="737.4000000000001" width="258.32199999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="464.07299999999987" y="755.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🐛 Nhóm 2: Bug Fixes &amp; Reproduction</text>
+</g>
+<g class="node" data-id="AgentGarden" data-label="🪴 Nhóm 3: Code Gardening &amp; Cleanup" data-shape="rectangle">
+  <rect x="621.2339999999999" y="737.4000000000001" width="255.35799999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="748.9129999999999" y="755.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🪴 Nhóm 3: Code Gardening &amp; Cleanup</text>
+</g>
+<g class="node" data-id="AgentExp" data-label="🔬 Nhóm 4: Experimental Rewrites" data-shape="rectangle">
+  <rect x="904.5919999999999" y="737.4000000000001" width="237.57399999999993" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1023.3789999999998" y="755.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🔬 Nhóm 4: Experimental Rewrites</text>
+</g>
+<g class="node" data-id="DuneEnv" data-label="🛡️ Môi trường Framework Dune
+- Quy ước thư mục độc lập
+- Type Narrowing cực khắt khe
+- CLI nội bộ xử lý tác vụ cơ học" data-shape="rectangle">
+  <rect x="632.7194999999999" y="822.3000000000001" width="232.38699999999994" height="87.60000000000001" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="748.9129999999999" y="866.1" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="748.9129999999999" dy="-20.8">🛡️ Môi trường Framework Dune</tspan><tspan x="748.9129999999999" dy="16.900000000000002">- Quy ước thư mục độc lập</tspan><tspan x="748.9129999999999" dy="16.900000000000002">- Type Narrowing cực khắt khe</tspan><tspan x="748.9129999999999" dy="16.900000000000002">- CLI nội bộ xử lý tác vụ cơ học</tspan></text>
+</g>
+<g class="node" data-id="CreatePR" data-label="🚀 Khởi tạo Pull Request (PR)" data-shape="rectangle">
+  <rect x="644.5754999999999" y="957.9000000000001" width="208.67499999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="748.9129999999999" y="976.3500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🚀 Khởi tạo Pull Request (PR)</text>
+</g>
+<g class="node" data-id="Verifiers" data-label="🕵️‍♂️ 1 - 10 Verifier Agents độc lập
+(Fuzzing, Headless Browser, Chrome DevTools Protocol)" data-shape="rectangle">
+  <rect x="655.9317499999997" y="1634.6310000000003" width="377.62299999999993" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="844.7432499999998" y="1661.5310000000004" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="844.7432499999998" dy="-3.9000000000000012">🕵️‍♂️ 1 - 10 Verifier Agents độc lập</tspan><tspan x="844.7432499999998" dy="16.900000000000002">(Fuzzing, Headless Browser, Chrome DevTools Protocol)</tspan></text>
+</g>
+<g class="node" data-id="RunApp" data-label="Tự khởi chạy App &amp; Click mô phỏng User" data-shape="rectangle">
+  <rect x="834.230083333333" y="1736.431" width="274.62399999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="971.542083333333" y="1754.881" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Tự khởi chạy App &amp; Click mô phỏng User</text>
+</g>
+<g class="node" data-id="CheckResult" data-label="Đạt chuẩn?
+(Hết bug, không lỗi console, không hồi quy?)" data-shape="diamond">
+  <polygon points="1131.2339999999997,1114.8000000000002 1290.5494999999996,1274.1155 1131.2339999999997,1433.431 971.9184999999998,1274.1155" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1131.2339999999997" y="1274.1155" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="1131.2339999999997" dy="-3.9000000000000012">Đạt chuẩn?</tspan><tspan x="1131.2339999999997" dy="16.900000000000002">(Hết bug, không lỗi console, không hồi quy?)</tspan></text>
+</g>
+<g class="node" data-id="SelfHeal" data-label="Tự động sửa lỗi &amp; Chạy lại kiểm định (Self-healing Loop)" data-shape="rectangle">
+  <rect x="759.9129999999998" y="1549.7310000000002" width="361.3209999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="940.5734999999997" y="1568.1810000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Tự động sửa lỗi &amp; Chạy lại kiểm định (Self-healing Loop)</text>
+</g>
+<g class="node" data-id="AutoMerge" data-label="✨ TỰ ĐỘNG MERGE VÀO PRODUCTION (Full Autopilot)" data-shape="rectangle">
+  <rect x="1142.2339999999997" y="1549.7310000000002" width="356.13399999999984" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1320.3009999999997" y="1568.1810000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">✨ TỰ ĐỘNG MERGE VÀO PRODUCTION (Full Autopilot)</text>
+</g>
+<g class="node" data-id="WakeUp" data-label="🌅 Kỹ sư thức dậy" data-shape="rectangle">
+  <rect x="1248.1969999999994" y="1893.3310000000001" width="144.208" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1320.3009999999995" y="1911.7810000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">🌅 Kỹ sư thức dậy</text>
+</g>
+<g class="node" data-id="Sampling" data-label="Lấy mẫu kiểm tra (Sampling &amp; Commit History)" data-shape="rectangle">
+  <rect x="1170.7624999999994" y="1978.2310000000002" width="299.0769999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1320.3009999999992" y="1996.6810000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Lấy mẫu kiểm tra (Sampling &amp; Commit History)</text>
+</g>
+<g class="node" data-id="DetectFlaw" data-label="Có phát hiện lỗi/antipattern?" data-shape="diamond">
+  <polygon points="1320.3009999999992,2063.1310000000003 1433.3039999999992,2176.1340000000005 1320.3009999999992,2289.1370000000006 1207.2979999999993,2176.1340000000005" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1320.3009999999992" y="2176.1340000000005" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Có phát hiện lỗi/antipattern?</text>
+</g>
+<g class="node" data-id="HardenEnv" data-label="🛠️ CẬP NHẬT MÔI TRƯỜNG:
+- Viết thêm Lint Rule mới
+- Tinh chỉnh Skill / Rule PStack
+- Bổ sung ràng buộc cơ học" data-shape="rectangle">
+  <rect x="1332.8189999999995" y="2405.437" width="221.27199999999996" height="87.60000000000001" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1443.4549999999995" y="2449.237" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="1443.4549999999995" dy="-20.8">🛠️ CẬP NHẬT MÔI TRƯỜNG:</tspan><tspan x="1443.4549999999995" dy="16.900000000000002">- Viết thêm Lint Rule mới</tspan><tspan x="1443.4549999999995" dy="16.900000000000002">- Tinh chỉnh Skill / Rule PStack</tspan><tspan x="1443.4549999999995" dy="16.900000000000002">- Bổ sung ràng buộc cơ học</tspan></text>
+</g>
+<g class="node" data-id="ContinueCycle" data-label="Hệ thống tiếp tục chu trình mới" data-shape="rectangle">
+  <rect x="1089.4749999999995" y="2405.437" width="215.34399999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="1197.1469999999995" y="2423.8869999999997" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Hệ thống tiếp tục chu trình mới</text>
+</g>
+</svg>

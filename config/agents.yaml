@@ -1,0 +1,120 @@
+enable_agent_execution: true
+default_agent: claude
+routing:
+  collect_group: agy
+  prepare_context: agy
+  bug_fix: agy
+  performance: agy
+  code_gardening: agy
+  experimental: agy
+  verifier: agy
+  verify_fix: agy
+pipeline_steps:
+  collect_group:
+  - name: collector-triage-agent
+    agent_id: agy
+    role: Triage & Grouping
+    description: Phân tích sự cố/checklist, phân loại track chuyên trách và tóm tắt nguyên nhân gốc
+    model: ''
+    track: collect_group
+  prepare_context:
+  - name: context-synth-agent
+    agent_id: agy
+    role: Context Synthesis
+    description: Khảo sát mã nguồn repo thật (read-only), ánh xạ file liên quan và tổng hợp Execution Brief
+    model: ''
+    track: prepare_context
+  agent_execution:
+  - name: bug-fix-agent
+    agent_id: agy
+    role: Bug Fix
+    description: ''
+    model: ''
+    track: bug_fix
+  - name: performance-agent
+    agent_id: agy
+    role: Performance
+    description: ''
+    model: ''
+    track: performance
+  - name: gardening-agent
+    agent_id: agy
+    role: Code Gardening
+    description: ''
+    model: ''
+    track: code_gardening
+  - name: experimental-agent
+    agent_id: agy
+    role: Experimental
+    description: ''
+    model: ''
+    track: experimental
+  validate_deliver:
+  - name: verifier-agent
+    agent_id: agy
+    role: Verifier
+    description: ''
+    model: ''
+    track: verifier
+  - name: self-heal-pr-agent
+    agent_id: agy
+    role: Self-healing & PR
+    description: ''
+    model: ''
+    track: verify_fix
+profiles:
+  claude:
+    label: Claude Code
+    binary: claude
+    model: ''
+    args_template:
+    - -p
+    - '{prompt}'
+    timeout_sec: 300
+    description: Phân tích sâu nguyên nhân gốc & sửa lỗi phức tạp
+    loopback_proxy_port: null
+    credential_env: []
+  codex:
+    label: Codex CLI
+    binary: codex
+    model: ''
+    args_template:
+    - exec
+    - '{prompt}'
+    timeout_sec: 300
+    description: Tối ưu hiệu năng & chỉnh sửa code tốc độ cao
+    loopback_proxy_port: null
+    credential_env: []
+  gemini:
+    label: Gemini CLI
+    binary: gemini
+    model: ''
+    args_template:
+    - -p
+    - '{prompt}'
+    timeout_sec: 300
+    description: Dọn dẹp code, refactor & xử lý tech debt diện rộng
+    loopback_proxy_port: null
+    credential_env: []
+  opencode:
+    label: OpenCode
+    binary: opencode
+    model: opencode/hy4-flash-free
+    args_template:
+    - run
+    - '{prompt}'
+    timeout_sec: 300
+    description: Thử nghiệm đa mô hình & viết lại thử nghiệm
+    loopback_proxy_port: null
+    credential_env: []
+  agy:
+    label: Antigravity (Agy)
+    binary: agy
+    model: gemini-4-neon-medium
+    args_template:
+    - -p
+    - '{prompt}'
+    timeout_sec: 600
+    description: Antigravity CLI Agent tự chủ đa tác vụ & sửa lỗi sâu
+    loopback_proxy_port: null
+    credential_env: []

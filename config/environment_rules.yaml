@@ -1,0 +1,28 @@
+# Giai đoạn 5 — Nâng cấp vĩnh viễn môi trường ("Nâng cấp gian bếp, không sửa bằng tay")
+# Các ràng buộc & luật kiểm tra ở đây tự động áp dụng cho cả Outer Loop (quét code)
+# và Inner Loop (Bước 1, 3, 4 của Quy trình 4 bước).
+
+forbidden_path_patterns:
+  - ".env"
+  - "browser_profiles/"
+  - ".pem"
+  - ".key"
+  - ".keystore"
+  - "google-services.json"
+  - "GoogleService-Info.plist"
+  - "secrets"
+
+# Các mẫu cấm xuất hiện trong git diff của bản vá do AI tạo ra (Verifier Gate)
+forbidden_diff_patterns:
+  - id: merge_conflict_marker
+    pattern: "^\\+.*(<<<<<<<|=======|>>>>>>>)"
+    message: "Phát hiện merge conflict marker trong bản vá"
+  - id: hardcoded_secret
+    pattern: "^\\+.*(AIza[0-9A-Za-z\\-_]{35}|sk-[A-Za-z0-9]{20,})"
+    message: "Phát hiện khả năng lộ API key/secret trong bản vá"
+
+# Luật quét antipattern/lint bổ sung (tự động nạp vào CodeAuditContextSource)
+custom_audit_rules: []
+
+# Lệnh kiểm tra cơ học bổ sung cho mọi repo (nếu cần)
+extra_mechanical_checks: []

@@ -1,0 +1,29 @@
+projects:
+- key: example_app
+  name: Example App
+  firebase_project_id: REPLACE_WITH_FIREBASE_PROJECT_ID
+  enabled: false
+  scan_interval_minutes: 60
+  console_url: ''
+  console_url_ios: ''
+  console_url_android: ''
+  repository_path: /Users/YOU/Projects/example-app
+  platform: flutter
+  sources:
+  - type: crashlytics
+    enabled: false
+  - type: code_audit
+    enabled: false
+  - type: inbox_json
+    enabled: false
+    path: data/inbox
+  - type: file
+    enabled: false
+    path: /Users/YOU/Projects/example-app/ISSUES.md
+  execution:
+    auto_run: false
+    dry_run: true
+    base_branch: main
+    auto_create_pr: false
+    auto_merge: false
+    max_clusters_per_cycle: 3

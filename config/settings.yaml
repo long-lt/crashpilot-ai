@@ -1,0 +1,10 @@
+browser:
+  viewport:
+    width: 1440
+    height: 1000
+  navigation_timeout_ms: 45000
+  action_timeout_ms: 15000
+
+collector:
+  # Phase 1 only verifies browser access; no automated extraction yet.
+  take_debug_screenshot: true
