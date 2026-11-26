@@ -60,6 +60,7 @@ class ConstraintConfig(BaseModel):
     base_branch: str = "main"
     auto_create_pr: bool = False
     auto_merge: bool = False
+    cleanup_on_failure: bool = False
 
 
 class StepResult(BaseModel):

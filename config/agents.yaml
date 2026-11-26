@@ -14,14 +14,16 @@ pipeline_steps:
   - name: collector-triage-agent
     agent_id: agy
     role: Triage & Grouping
-    description: Phân tích sự cố/checklist, phân loại track chuyên trách và tóm tắt nguyên nhân gốc
+    description: Phân tích sự cố/checklist, phân loại track chuyên trách và tóm tắt
+      nguyên nhân gốc
     model: ''
     track: collect_group
   prepare_context:
   - name: context-synth-agent
     agent_id: agy
     role: Context Synthesis
-    description: Khảo sát mã nguồn repo thật (read-only), ánh xạ file liên quan và tổng hợp Execution Brief
+    description: Khảo sát mã nguồn repo thật (read-only), ánh xạ file liên quan và
+      tổng hợp Execution Brief
     model: ''
     track: prepare_context
   agent_execution:
@@ -110,7 +112,7 @@ profiles:
   agy:
     label: Antigravity (Agy)
     binary: agy
-    model: gemini-4-neon-medium
+    model: gemini-3.8-flash-medium
     args_template:
     - -p
     - '{prompt}'

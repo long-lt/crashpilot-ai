@@ -183,6 +183,199 @@ class ConstrainedFourStepRunner:
                 return self._run(cluster, config, Path(temp) / "repo", task_id=task_id)
         return self._run(cluster, config, None, task_id=task_id)
 
+    def resume_from_step(
+        self,
+        run_id: str,
+        cluster: EventCluster,
+        config: ConstraintConfig,
+        from_step: int,
+        task_id: Optional[str] = None,
+    ) -> PipelineRunReport:
+        """Tiếp tục chạy lại từ đúng bước bị lỗi (3 hoặc 4) trên worktree hiện có thay vì chạy lại từ đầu."""
+        artifacts_dir = self.runs_dir / run_id
+        report_file = artifacts_dir / "report.json"
+        worktree = (artifacts_dir / "worktree").resolve()
+        brief_path = artifacts_dir / "brief.md"
+
+        if from_step < 3 or not report_file.is_file():
+            return self.run(cluster, config, task_id=task_id)
+
+        try:
+            prev = PipelineRunReport.model_validate_json(report_file.read_text(encoding="utf-8"))
+        except Exception:
+            return self.run(cluster, config, task_id=task_id)
+
+        prev_steps = {s.step_number: s for s in prev.steps}
+        step1 = prev_steps.get(1)
+        step2 = prev_steps.get(2)
+        if not step1 or not step2 or not brief_path.is_file():
+            return self.run(cluster, config, task_id=task_id)
+
+        # Đảm bảo worktree sẵn sàng: nếu worktree đã bị dọn dẹp trước đó, phục hồi từ branch hoặc base_commit
+        if not worktree.is_dir() and prev.branch_name and config.repository_path:
+            owner = Path(config.repository_path).expanduser()
+            if owner.is_dir():
+                worktree.parent.mkdir(parents=True, exist_ok=True)
+                res = subprocess.run(
+                    ["git", "worktree", "add", str(worktree), prev.branch_name],
+                    cwd=owner,
+                    capture_output=True,
+                    text=True,
+                )
+                if res.returncode == 0:
+                    bootstrap_flutter_worktree(owner, worktree)
+                else:
+                    base = step1.details.get("base_commit")
+                    if base:
+                        res2 = subprocess.run(
+                            ["git", "worktree", "add", "-b", prev.branch_name, str(worktree), base],
+                            cwd=owner,
+                            capture_output=True,
+                            text=True,
+                        )
+                        if res2.returncode == 0:
+                            bootstrap_flutter_worktree(owner, worktree)
+                            patch_file = artifacts_dir / "verified.patch"
+                            if patch_file.is_file() and patch_file.stat().st_size > 0:
+                                subprocess.run(
+                                    ["git", "apply", "--whitespace=nowarn", str(patch_file.resolve())],
+                                    cwd=worktree,
+                                    capture_output=True,
+                                )
+
+        if not worktree.is_dir():
+            return self.run(cluster, config, task_id=task_id)
+
+        with (artifacts_dir / "run.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            return self._resume_locked(
+                prev=prev,
+                step1=step1,
+                step2=step2,
+                prev_step3=prev_steps.get(3),
+                from_step=from_step,
+                cluster=cluster,
+                config=config,
+                artifacts_dir=artifacts_dir,
+                worktree=worktree,
+                brief_path=brief_path,
+                task_id=task_id or prev.task_id,
+            )
+
+    def _resume_locked(
+        self,
+        *,
+        prev: PipelineRunReport,
+        step1: StepResult,
+        step2: StepResult,
+        prev_step3: Optional[StepResult],
+        from_step: int,
+        cluster: EventCluster,
+        config: ConstraintConfig,
+        artifacts_dir: Path,
+        worktree: Path,
+        brief_path: Path,
+        task_id: Optional[str],
+    ) -> PipelineRunReport:
+        run_id = prev.run_id
+        track = prev.track
+        branch_name = prev.branch_name
+        verification_rounds = list(prev.verification_rounds or [])
+        steps: list[StepResult] = [step1, step2]
+        if from_step == 4 and prev_step3 and prev_step3.status == StepStatus.PASSED:
+            steps.append(prev_step3)
+        else:
+            from_step = 3
+
+        execution_config = config.model_copy(update={"repository_path": str(worktree)})
+        defaults = detect_default_checks(worktree)
+        execution_config.auto_merge = config.auto_merge and not any(
+            fnmatch.fnmatchcase(config.base_branch, rule) for rule in config.protected_branches
+        )
+        env_rules_stage1 = load_environment_rules()
+        execution_config.forbidden_path_patterns = list(
+            dict.fromkeys([*config.forbidden_path_patterns, *env_rules_stage1.forbidden_path_patterns])
+        )
+        execution_config.mechanical_checks = flutter_analysis_checks(
+            worktree,
+            [*(config.mechanical_checks or defaults), *env_rules_stage1.extra_mechanical_checks],
+        )
+
+        def mark_running(step_num: int, step_name: str) -> None:
+            running_step = StepResult(
+                step_number=step_num,
+                name=step_name,
+                status=StepStatus.RUNNING,
+                summary=f"Đang chạy lại từ Bước {step_num}/4: {step_name}...",
+            )
+            self._write_report(
+                run_id=run_id,
+                cluster=cluster,
+                track=track,
+                config=config,
+                branch_name=branch_name,
+                overall_status="RUNNING",
+                steps=[*[s for s in steps if s.step_number < step_num], running_step],
+                artifacts_dir=artifacts_dir,
+                current_step=step_num,
+                current_step_name=step_name,
+                task_id=task_id,
+                verification_rounds=verification_rounds,
+            )
+
+        cumulative_attempts = list((prev_step3.details.get("attempts") or []) if prev_step3 else [])
+        if from_step == 3:
+            mark_running(3, "Isolated Execution & Mechanical Checks")
+            step3 = self.step_3_execute_and_check(
+                cluster,
+                track,
+                execution_config,
+                brief_path,
+                start_attempt=len(cumulative_attempts) + 1,
+            )
+            cumulative_attempts.extend(list(step3.details.get("attempts") or []))
+            step3.details["attempts"] = list(cumulative_attempts)
+            steps = [step1, step2, step3]
+            if step3.status != StepStatus.PASSED:
+                return self._finalize(
+                    run_id, cluster, track, config, branch_name,
+                    "BLOCKED" if step3.status == StepStatus.BLOCKED else "FAILED",
+                    steps, artifacts_dir, task_id=task_id, verification_rounds=verification_rounds,
+                )
+        else:
+            step3 = prev_step3
+            assert step3 is not None
+
+        attempt_no = len(verification_rounds) + 1
+        mark_running(4, "Independent Verification & PR Gate")
+        step4, final_status, pr_url, verifier_feedback = self.step_4_verify_and_pr_gate(
+            cluster, track, execution_config, branch_name, brief_path, step3, artifacts_dir,
+            step1.details.get("base_commit"), attempt_no=attempt_no,
+        )
+        steps = [step1, step2, step3, step4]
+        s4_det = step4.details or {}
+        last_att = cumulative_attempts[-1] if cumulative_attempts else {}
+        verification_rounds.append(
+            {
+                "attempt": attempt_no,
+                "agent": (last_att.get("executor") or {}).get("agent") or step3.details.get("selected_agent"),
+                "mechanical_passed": True,
+                "mechanical_checks": last_att.get("checks") or [],
+                "stage_4a": s4_det.get("stage_4a", "PASS" if step4.status == StepStatus.PASSED else "FAIL"),
+                "stage_4b": s4_det.get("stage_4b", "BLOCKED" if step4.status != StepStatus.PASSED else "SKIP"),
+                "stage_4c": s4_det.get("stage_4c", "BLOCKED" if step4.status != StepStatus.PASSED else "SKIP"),
+                "passed": step4.status == StepStatus.PASSED,
+                "verdict": "PASS" if step4.status == StepStatus.PASSED else "FAIL",
+                "feedback": verifier_feedback,
+                "patch_file": s4_det.get("attempt_patch_file"),
+                "patch_sha256": s4_det.get("patch_sha256"),
+            }
+        )
+        return self._finalize(
+            run_id, cluster, track, config, branch_name, final_status, steps, artifacts_dir,
+            pr_url=pr_url, task_id=task_id, verification_rounds=verification_rounds,
+        )
+
     def _run(
         self,
         cluster: EventCluster,
@@ -1021,30 +1214,70 @@ class ConstrainedFourStepRunner:
         )
         stage_4a = "PASS" if verification.passed else "FAIL"
 
-        # Kiểm định độc lập Giai đoạn 4B (Runtime Verifier — tự khởi chạy App & Fuzzing / CDP)
-        runtime_outcome = run_runtime_verifier(
-            repo_root=repo_root,
-            cfg=config.runtime_verifier,
-            artifacts_dir=artifacts_dir,
-        )
-        stage_4b = ("PASS" if runtime_outcome.passed else "FAIL") if runtime_outcome.executed else "SKIP"
-        if not runtime_outcome.passed:
-            verification.passed = False
+        # Rule fail-fast: Lỗi ở bước nào DỪNG NGAY tại bước đó — không chạy bước sau khi bước trước lỗi.
+        from app.constrained_runner.runtime_verifier import RuntimeVerifyOutcome
+        from app.constrained_runner.verifier import VerifierAgentOutcome
 
-        # Kiểm định độc lập Giai đoạn 4C (Verifier AI Agent độc lập review git diff)
-        verifier_outcome = run_verifier_agent(
-            repo_root=repo_root,
-            brief_path=brief_path,
-            diff_text=diff_text,
-            dry_run=config.dry_run,
-            custom_verifier_command=config.verifier_command,
-            agent_settings=self._agent_settings,
-            timeout_sec=config.check_timeout_sec,
-        )
-        verification.verifier_agent = verifier_outcome
-        stage_4c = ("PASS" if verifier_outcome.passed else "FAIL") if verifier_outcome.executed else "SKIP"
-        if not verifier_outcome.passed:
-            verification.passed = False
+        if not verification.passed:
+            runtime_outcome = RuntimeVerifyOutcome(
+                executed=False,
+                mode=(config.runtime_verifier.mode if config.runtime_verifier else "disabled"),
+                passed=True,
+                skipped_reason="stopped_at_4a",
+            )
+            verifier_outcome = VerifierAgentOutcome(
+                executed=False,
+                agent="none",
+                passed=True,
+                skipped_reason="stopped_at_4a",
+            )
+            verification.verifier_agent = verifier_outcome
+            stage_4b = "BLOCKED"
+            stage_4c = "BLOCKED"
+            stopped_at = "4A"
+        else:
+            # Kiểm định độc lập Giai đoạn 4B (Runtime Verifier — tự khởi chạy App & Fuzzing / CDP)
+            runtime_outcome = run_runtime_verifier(
+                repo_root=repo_root,
+                cfg=config.runtime_verifier,
+                artifacts_dir=artifacts_dir,
+            )
+            runtime_required = bool(config.runtime_verifier and config.runtime_verifier.enabled)
+            if runtime_required and not runtime_outcome.executed:
+                runtime_outcome.passed = False
+            if not runtime_outcome.passed:
+                stage_4b = "FAIL"
+            elif runtime_outcome.executed:
+                stage_4b = "PASS"
+            else:
+                stage_4b = "SKIP"
+            if not runtime_outcome.passed:
+                verification.passed = False
+                verifier_outcome = VerifierAgentOutcome(
+                    executed=False,
+                    agent="none",
+                    passed=True,
+                    skipped_reason="stopped_at_4b",
+                )
+                verification.verifier_agent = verifier_outcome
+                stage_4c = "BLOCKED"
+                stopped_at = "4B"
+            else:
+                # Kiểm định độc lập Giai đoạn 4C (Verifier AI Agent độc lập review git diff)
+                verifier_outcome = run_verifier_agent(
+                    repo_root=repo_root,
+                    brief_path=brief_path,
+                    diff_text=diff_text,
+                    dry_run=config.dry_run,
+                    custom_verifier_command=config.verifier_command,
+                    agent_settings=self._agent_settings,
+                    timeout_sec=config.check_timeout_sec,
+                )
+                verification.verifier_agent = verifier_outcome
+                stage_4c = ("PASS" if verifier_outcome.passed else "FAIL") if verifier_outcome.executed else "SKIP"
+                stopped_at = "4C" if not verifier_outcome.passed else ""
+                if not verifier_outcome.passed:
+                    verification.passed = False
 
         evidence = bool(verification.checks or runtime_outcome.executed or verifier_outcome.executed
                         or any(a.get("checks") for a in step3.details.get("attempts", [])))
@@ -1066,13 +1299,19 @@ class ConstrainedFourStepRunner:
             for chk in verification.checks:
                 if not chk.get("passed"):
                     feedback_parts.append(f"Check failed ({chk.get('cmd')}): {chk.get('output_tail')}")
-            if runtime_outcome.executed and not runtime_outcome.passed:
-                feedback_parts.append(
-                    f"Runtime Verifier ({runtime_outcome.mode}) FAILED: "
-                    f"console_errors={runtime_outcome.console_errors}, "
-                    f"page_errors={runtime_outcome.page_errors}, "
-                    f"server_errors={runtime_outcome.server_errors} {runtime_outcome.mobile_output[:500]}"
-                )
+            if not runtime_outcome.passed:
+                if runtime_outcome.executed:
+                    feedback_parts.append(
+                        f"Runtime Verifier ({runtime_outcome.mode}) FAILED: "
+                        f"console_errors={runtime_outcome.console_errors}, "
+                        f"page_errors={runtime_outcome.page_errors}, "
+                        f"server_errors={runtime_outcome.server_errors} {runtime_outcome.mobile_output[:500]}"
+                    )
+                else:
+                    feedback_parts.append(
+                        f"Runtime Verifier ({runtime_outcome.mode}) FAILED: "
+                        f"{runtime_outcome.skipped_reason or 'Không thể thực thi kiểm định 4B.'}"
+                    )
             if verifier_outcome.executed and not verifier_outcome.passed:
                 feedback_parts.append(f"Verifier Agent ({verifier_outcome.agent}): {verifier_outcome.verdict_text}")
             return (
@@ -1080,7 +1319,10 @@ class ConstrainedFourStepRunner:
                     step_number=4,
                     name="Independent Verification & PR Gate",
                     status=StepStatus.FAILED,
-                    summary=f"Kiểm định độc lập thất bại (runtime={runtime_outcome.mode}, verifier={verifier_outcome.agent}).",
+                    summary=(
+                        f"Dừng tại {stopped_at}: kiểm định độc lập thất bại "
+                        f"(4A={stage_4a}, 4B={stage_4b}, 4C={stage_4c})."
+                    ),
                     details={
                         "changed_files": changed_files,
                         "diff_violations": verification.diff_violations,
@@ -1155,7 +1397,12 @@ class ConstrainedFourStepRunner:
                         details={
                             "changed_files": changed_files,
                             "pr_body_path": str(pr_body_path),
+                            "verify_checks": verification.checks,
+                            "runtime_verifier": runtime_outcome.model_dump(),
                             "verifier_agent": verifier_outcome.model_dump(),
+                            "stage_4a": stage_4a,
+                            "stage_4b": stage_4b,
+                            "stage_4c": stage_4c,
                             "pr": pr_details,
                             "delivery": {"base_commit": base_commit, "verified_tree": tree, "base_branch": config.base_branch,
                                          "pr_title": pr_title, "auto_merge": config.auto_merge},
@@ -1333,8 +1580,23 @@ class ConstrainedFourStepRunner:
         task_id: Optional[str] = None,
         verification_rounds: Optional[list[dict]] = None,
     ) -> PipelineRunReport:
-        # Only dispose of the checkout we created. Keep deliverable work and timed-out PRs for resumption.
-        keep = {"VERIFIED_READY_FOR_PR", "CHECKLIST_UPDATE_PENDING"}
+        # Giữ lại worktree và branch cho các trạng thái cần retry/kiểm định hoặc đã sẵn sàng PR.
+        # Mặc định giữ worktree khi fail để cho phép retry từ đúng bước lỗi; chỉ dọn dẹp khi cleanup_on_failure=True.
+        keep = {
+            "VERIFIED_READY_FOR_PR",
+            "CHECKLIST_UPDATE_PENDING",
+        }
+        if not config.cleanup_on_failure:
+            keep.update({
+                "FAILED",
+                "BLOCKED",
+                "VERIFICATION_FAILED",
+                "DIFF_CHECK_FAILED",
+                "ANALYSIS_FAILED",
+                "TESTS_FAILED",
+                "PR_CREATE_FAILED",
+                "PR_MERGE_FAILED",
+            })
         if branch_name and not config.dry_run and overall_status not in keep and steps:
             checkout = (artifacts_dir / "worktree").resolve()
             if (steps[0].details.get("repo_root") == str(checkout)

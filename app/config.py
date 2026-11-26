@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import subprocess
 import yaml
@@ -9,6 +9,7 @@ from app.config_files import editing_config, write_yaml
 
 
 DEFAULT_PROJECTS_FILE = "config/projects.yaml"
+VALID_CRASHLYTICS_BACKENDS = ("firebase_cli", "api", "browser")
 
 
 class Settings(BaseSettings):
@@ -20,8 +21,20 @@ class Settings(BaseSettings):
     env: str = "development"
     log_level: str = "INFO"
     projects_file: str = DEFAULT_PROJECTS_FILE
+    crashlytics_backend: Literal["firebase_cli", "api", "browser"] = "firebase_cli"
     browser_profile: str = "browser_profiles/firebase"
     headless: bool = False
+
+
+def resolve_crashlytics_backend(
+    project: dict[str, Any] | None = None,
+    settings: Settings | None = None,
+) -> Literal["firebase_cli", "api", "browser"]:
+    """Xác định backend Crashlytics cho 1 dự án: ưu tiên cấu hình riêng của dự án, fallback về Settings."""
+    raw = str((project or {}).get("crashlytics_backend") or "").strip().lower()
+    if raw in VALID_CRASHLYTICS_BACKENDS:
+        return raw  # type: ignore[return-value]
+    return (settings or Settings()).crashlytics_backend
 
 
 def _resolve_projects_path(path: str | None = None) -> Path:
@@ -81,9 +94,11 @@ def project_sources(project: dict) -> list[dict]:
     return [s for s in raw if s.get("enabled", True)]
 
 
-def _default_sources(console_url: str, input_file_path: str = "") -> list[dict[str, Any]]:
+def _default_sources(
+    console_url: str, input_file_path: str = "", *, firebase_project_id: str = ""
+) -> list[dict[str, Any]]:
     sources: list[dict[str, Any]] = [
-        {"type": "crashlytics", "enabled": bool(console_url)},
+        {"type": "crashlytics", "enabled": bool(firebase_project_id or console_url)},
         {"type": "code_audit", "enabled": True},
         {"type": "inbox_json", "enabled": True, "path": "data/inbox"},
     ]
@@ -213,6 +228,14 @@ def _upsert_project_config(payload: dict[str, Any], path: str | None = None) -> 
         url = str(payload.get(field) or "").strip()
         if url and (urlsplit(url).scheme not in {"http", "https"} or not urlsplit(url).hostname):
             raise ValueError("Console URL phải dùng HTTP hoặc HTTPS.")
+    raw_backend = payload.get("crashlytics_backend")
+    if raw_backend is not None:
+        backend_val = str(raw_backend).strip().lower()
+        if backend_val and backend_val not in VALID_CRASHLYTICS_BACKENDS:
+            raise ValueError(
+                f"Crashlytics backend không hợp lệ: '{backend_val}'. "
+                f"Chỉ hỗ trợ: {', '.join(VALID_CRASHLYTICS_BACKENDS)}."
+            )
     config_path = _resolve_projects_path(path)
     projects = load_all_projects(str(config_path)) if config_path.exists() else []
     existing_idx = next((i for i, p in enumerate(projects) if p.get("key") == key), None)
@@ -229,6 +252,7 @@ def _upsert_project_config(payload: dict[str, Any], path: str | None = None) -> 
         for field in (
             "name",
             "firebase_project_id",
+            "crashlytics_backend",
             "console_url",
             "console_url_ios",
             "console_url_android",
@@ -236,7 +260,8 @@ def _upsert_project_config(payload: dict[str, Any], path: str | None = None) -> 
             "platform",
         ):
             if field in payload and payload[field] is not None:
-                item[field] = str(payload[field]).strip()
+                val = str(payload[field]).strip()
+                item[field] = val.lower() if field == "crashlytics_backend" else val
         if not item.get("console_url") and (item.get("console_url_android") or item.get("console_url_ios")):
             item["console_url"] = item.get("console_url_android") or item.get("console_url_ios")
         if "enabled" in payload:
@@ -279,7 +304,9 @@ def _upsert_project_config(payload: dict[str, Any], path: str | None = None) -> 
 
         # Cập nhật nguồn file đơn lẻ nếu có truyền input_file_path
         if "input_file_path" in payload:
-            srcs = list(item.get("sources") or _default_sources(item.get("console_url", "")))
+            srcs = list(item.get("sources") or _default_sources(
+                item.get("console_url", ""), firebase_project_id=item.get("firebase_project_id", "")
+            ))
             original = payload.get("original_input_file_path")
             index = next((i for i, src in enumerate(srcs) if src.get("type") == "file"
                           and (original is None or src.get("path") == original)), None)
@@ -308,10 +335,13 @@ def _upsert_project_config(payload: dict[str, Any], path: str | None = None) -> 
                 f"(đang đứng: {git_info['current_branch'] or 'N/A'}, các nhánh hiện có: {', '.join(git_info['branches'])})."
             )
         resolved_base = raw_base or git_info["default_base_branch"] or "main"
+        firebase_project_id = str(payload.get("firebase_project_id") or "").strip()
+        crashlytics_backend = str(payload.get("crashlytics_backend") or "").strip().lower()
         item = {
             "key": key,
             "name": str(payload.get("name") or key).strip(),
-            "firebase_project_id": str(payload.get("firebase_project_id") or "").strip(),
+            "firebase_project_id": firebase_project_id,
+            **({"crashlytics_backend": crashlytics_backend} if crashlytics_backend else {}),
             "enabled": bool(payload.get("enabled", True)),
             "scan_interval_minutes": interval,
             "console_url": console_url,
@@ -319,7 +349,9 @@ def _upsert_project_config(payload: dict[str, Any], path: str | None = None) -> 
             "console_url_android": console_url_android,
             "repository_path": repo_path_str,
             "platform": str(payload.get("platform") or "flutter").strip(),
-            "sources": _default_sources(console_url, input_file_path),
+            "sources": _default_sources(
+                console_url, input_file_path, firebase_project_id=firebase_project_id
+            ),
             "execution": {
                 "auto_run": bool(payload.get("auto_run", True)),
                 "dry_run": bool(payload.get("dry_run", True)),

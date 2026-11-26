@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 from sqlalchemy.orm import Session, selectinload
+from app.config import project_sources
 from app.config_files import editing_config
 
 from app.analyzer.source_mapper import build_diagnosis_report
@@ -133,12 +134,15 @@ def list_issues(
     project_key: Optional[str] = Query(default=None),
     issue_type: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
+    platform: Optional[str] = Query(default=None),
 ):
     query = db.query(IssueModel).options(selectinload(IssueModel.details))
     if project_key:
         query = query.filter(IssueModel.project_key == project_key)
     if issue_type:
         query = query.filter(IssueModel.issue_type == issue_type)
+    if isinstance(platform, str) and platform.strip().lower() not in {"all", ""}:
+        query = query.filter(IssueModel.platform == platform.strip().lower())
 
     issues = query.order_by(IssueModel.events_count.desc()).all()
     return [
@@ -420,7 +424,7 @@ def scan_and_probe_agents_api(payload: dict = Body(default_factory=dict)):
 
 @app.get("/api/settings/projects")
 def get_projects_settings_api(db: Session = Depends(get_db)):
-    from app.config import inspect_git_repository, load_all_projects
+    from app.config import inspect_git_repository, load_all_projects, resolve_crashlytics_backend
 
     projects = load_all_projects()
     db_map = {p.key: p for p in db.query(ProjectModel).options(selectinload(ProjectModel.issues)).all()}
@@ -437,6 +441,8 @@ def get_projects_settings_api(db: Session = Depends(get_db)):
                 "key": p["key"],
                 "name": p.get("name") or p["key"],
                 "firebase_project_id": p.get("firebase_project_id") or "",
+                "crashlytics_backend": p.get("crashlytics_backend") or "",
+                "effective_crashlytics_backend": resolve_crashlytics_backend(p),
                 "console_url": p.get("console_url") or "",
                 "console_url_ios": p.get("console_url_ios") or "",
                 "console_url_android": p.get("console_url_android") or "",
@@ -769,7 +775,11 @@ def _build_trend_7d(issues: list[IssueModel], runs: list[dict], project_key: Opt
 
 def _project_sources_labels(proj_cfg: dict) -> list[str]:
     labels: list[str] = []
-    if proj_cfg.get("console_url") or proj_cfg.get("console_url_ios") or proj_cfg.get("console_url_android"):
+    if any(src.get("type") == "crashlytics" for src in project_sources(proj_cfg)) and any(
+        proj_cfg.get(field) for field in (
+            "firebase_project_id", "console_url", "console_url_ios", "console_url_android"
+        )
+    ):
         labels.append("Crashlytics")
     if proj_cfg.get("repository_path"):
         labels.append("Code Scan")
@@ -1079,6 +1089,16 @@ def _build_project_lifecycle_bundle(project_key: str, db: Session) -> dict:
     git_info = inspect_git_repository(repo)
     default_proj_base = str(exec_cfg.get("base_branch") or git_info["default_base_branch"] or "main")
     cluster_titles = {c.get("cluster_id"): c.get("title") for c in clusters if c.get("cluster_id")}
+    cluster_platforms: dict[str, list[str]] = {}
+    for c_obj in queued:
+        plats = sorted(
+            {
+                str((ev.metadata or {}).get("platform") or "").strip().lower()
+                for ev in c_obj.events
+                if str((ev.metadata or {}).get("platform") or "").strip()
+            }
+        )
+        cluster_platforms[c_obj.cluster_id] = plats
 
     runs_by_cluster: dict[str, list[dict]] = {}
     task_id_by_run: dict[str, str] = {}
@@ -1108,6 +1128,9 @@ def _build_project_lifecycle_bundle(project_key: str, db: Session) -> dict:
         c_runs = runs_by_cluster.get(t_obj.cluster_id, [])
         latest_r = c_runs[0] if c_runs else None
         serialized = serialize_task(t_obj, latest_run=latest_r, runs_count=len(c_runs))
+        plats = cluster_platforms.get(t_obj.cluster_id, [])
+        serialized["platforms"] = plats
+        serialized["platform"] = plats[0] if len(plats) == 1 else ("multi" if len(plats) > 1 else "general")
         if serialized["status"] == "completed":
             completed += 1
         recent_tasks.append(serialized)
@@ -1368,12 +1391,16 @@ def _build_project_lifecycle_bundle(project_key: str, db: Session) -> dict:
     )
     rv_cfg = exec_cfg.get("runtime_verifier") if isinstance(exec_cfg.get("runtime_verifier"), dict) else {}
 
+    from app.config import resolve_crashlytics_backend
+
     return {
         "project": {
             "key": project_key,
             "name": proj_cfg.get("name") or project_key,
             "platform": proj_cfg.get("platform") or "flutter",
             "firebase_project_id": proj_cfg.get("firebase_project_id") or "",
+            "crashlytics_backend": proj_cfg.get("crashlytics_backend") or "",
+            "effective_crashlytics_backend": resolve_crashlytics_backend(proj_cfg),
             "console_url": proj_cfg.get("console_url") or "",
             "console_url_ios": proj_cfg.get("console_url_ios") or "",
             "console_url_android": proj_cfg.get("console_url_android") or "",
@@ -1422,6 +1449,7 @@ def _build_project_lifecycle_bundle(project_key: str, db: Session) -> dict:
         "issues": [
             {
                 "issue_id": i.issue_id,
+                "platform": (i.platform or "unknown").lower(),
                 "title": i.title,
                 "subtitle": i.subtitle,
                 "issue_type": i.issue_type,
@@ -1541,7 +1569,7 @@ def get_task_detail_api(
 @app.patch("/api/tasks/{task_ref}")
 def update_task_api(task_ref: str, payload: dict = Body(default_factory=dict), db: Session = Depends(get_db)):
     from app.db.models import TaskModel
-    from app.db.task_lifecycle import serialize_task
+    from app.db.task_lifecycle import WORKFLOW_STATUSES, serialize_task
 
     task = db.query(TaskModel).filter((TaskModel.task_id == task_ref) | (TaskModel.cluster_id == task_ref)).first()
     if not task:
@@ -1549,12 +1577,200 @@ def update_task_api(task_ref: str, payload: dict = Body(default_factory=dict), d
     if "priority" in payload and payload["priority"] in ("high", "medium", "low"):
         task.priority = payload["priority"]
         task.priority_manual = True
-    if "status" in payload and payload["status"] in ("ready", "skipped"):
+    if "workflow_status" in payload:
+        wf = str(payload["workflow_status"] or "").strip().upper()
+        if wf not in WORKFLOW_STATUSES:
+            raise HTTPException(status_code=400, detail=f"Trạng thái không hợp lệ: {wf}")
+        wf_to_internal = {
+            "TODO": "ready",
+            "IN_PROGRESS": "running",
+            "IN_REVIEW": "verifying",
+            "DONE": "completed",
+            "CANCELLED": "skipped",
+            "BLOCKED": "failed",
+            "ON_HOLD": "on_hold",
+            "REOPENED": "reopened",
+        }
+        task.status = wf_to_internal[wf]
+        task.raw_status = wf
+    elif "status" in payload and payload["status"] in ("ready", "skipped"):
         task.status = payload["status"]
         task.raw_status = payload["status"].upper()
     db.commit()
     db.refresh(task)
     return {"saved": True, "task": serialize_task(task)}
+
+
+@app.post("/api/tasks/{task_ref}/retry-step")
+async def retry_task_from_step_api(
+    task_ref: str,
+    payload: dict = Body(default_factory=dict),
+    project_key: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """Tiếp tục chạy lại từ đúng bước bị lỗi (3 hoặc 4) trên worktree hiện có thay vì chạy lại từ đầu."""
+    import threading
+    from app.config import load_all_projects
+    from app.constrained_runner import ConstrainedFourStepRunner, ConstraintConfig
+    from app.context_collector import EventBufferQueue
+    from app.db.models import TaskModel
+    from app.db.task_lifecycle import extract_failure_info
+
+    q = db.query(TaskModel).filter((TaskModel.task_id == task_ref) | (TaskModel.cluster_id == task_ref))
+    if project_key:
+        q = q.filter(TaskModel.project_key == project_key)
+    task = q.first()
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy Task '{task_ref}'")
+
+    pkey = task.project_key
+    proj = next((p for p in load_all_projects() if p["key"] == pkey), None)
+    if not proj:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy dự án '{pkey}'.")
+    repo_path = str(proj.get("repository_path") or "").strip()
+    if not repo_path or not Path(repo_path).expanduser().is_dir():
+        raise HTTPException(
+            status_code=400,
+            detail="Dự án chưa gắn đường dẫn Source Code Local. Hãy vào 04. Settings để cấu hình trước khi chạy.",
+        )
+
+    runner = ConstrainedFourStepRunner()
+    req_run_id = str(payload.get("run_id") or task.latest_run_id or "").strip()
+    latest_run_dict: Optional[dict] = None
+    if req_run_id:
+        rfile = Path("data/runs") / req_run_id / "report.json"
+        if rfile.is_file():
+            latest_run_dict = json.loads(rfile.read_text(encoding="utf-8"))
+    failure = extract_failure_info(latest_run_dict)
+    from_step = int(payload.get("from_step") or (failure["resume_step"] if failure else 1))
+    from app.context_collector.base import EventCluster
+
+    run_dir = Path("data/runs") / req_run_id if req_run_id else None
+    can_resume = bool(
+        req_run_id
+        and from_step >= 3
+        and run_dir is not None
+        and (run_dir / "brief.md").is_file()
+        and (
+            (run_dir / "worktree").is_dir()
+            or (run_dir / "verified.patch").is_file()
+            or bool((latest_run_dict or {}).get("branch_name"))
+        )
+    )
+
+    cluster = EventBufferQueue().get_cluster(task.cluster_id)
+    if cluster is None and run_dir is not None and (run_dir / "cluster_events.json").is_file():
+        try:
+            cluster = EventCluster.model_validate_json((run_dir / "cluster_events.json").read_text(encoding="utf-8"))
+        except Exception:
+            cluster = None
+    if cluster is None:
+        cluster = EventCluster(
+            cluster_id=task.cluster_id or f"cls_{task.task_id}",
+            project_key=pkey,
+            events=[],
+            title=task.title or task.task_id,
+        )
+
+    if not can_resume:
+        task.status = "reopened"
+        task.raw_status = "REOPENED"
+        db.commit()
+        res = _queue_cycle(pkey, cluster.cluster_id)
+        return {**res, "resumed": False, "from_step": 1, "run_id": req_run_id}
+
+    from app.constrained_runner.models import RuntimeVerifierConfig
+
+    exec_cfg = proj.get("execution") or {}
+    rv_raw = exec_cfg.get("runtime_verifier")
+    runtime_verifier = RuntimeVerifierConfig.model_validate(rv_raw) if isinstance(rv_raw, dict) else None
+    constraint = ConstraintConfig(
+        repository_path=repo_path,
+        base_branch=str(exec_cfg.get("base_branch") or "main"),
+        dry_run=bool(exec_cfg.get("dry_run", True)),
+        **{key: exec_cfg[key] for key in ("protected_branches", "forbidden_path_patterns") if key in exec_cfg},
+        mechanical_checks=exec_cfg.get("mechanical_checks") or [],
+        verify_commands=exec_cfg.get("verify_commands") or [],
+        runtime_verifier=runtime_verifier,
+        executor_command=exec_cfg.get("executor_command"),
+        verifier_command=exec_cfg.get("verifier_command"),
+        max_retries=int(exec_cfg.get("max_retries", 1)),
+        auto_create_pr=bool(exec_cfg.get("auto_create_pr", False)),
+        auto_merge=bool(exec_cfg.get("auto_merge", False)),
+    )
+
+    task.status = "verifying" if from_step == 4 else "running"
+    task.raw_status = "IN_REVIEW" if from_step == 4 else "IN_PROGRESS"
+    db.commit()
+
+    tid = task.task_id
+
+    def _bg_resume():
+        try:
+            runner.resume_from_step(
+                run_id=req_run_id,
+                cluster=cluster,
+                config=constraint,
+                from_step=from_step,
+                task_id=tid,
+            )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Resume failed for %s at step %s", tid, from_step)
+
+    threading.Thread(target=_bg_resume, daemon=True, name=f"resume-{tid}").start()
+    return {
+        "queued": True,
+        "resumed": True,
+        "from_step": from_step,
+        "run_id": req_run_id,
+        "project_key": pkey,
+        "task_id": tid,
+    }
+
+
+@app.post("/api/projects/{project_key}/tasks/run-filtered")
+async def execute_filtered_tasks_api(
+    project_key: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+):
+    from app.context_collector import EventBufferQueue
+    from app.db.models import TaskModel
+
+    raw_ids = payload.get("cluster_ids") or []
+    if not isinstance(raw_ids, list) or not raw_ids:
+        raise HTTPException(status_code=400, detail="Danh sách tác vụ cần chạy đang trống.")
+    requested = list(dict.fromkeys(str(cid).strip() for cid in raw_ids if str(cid).strip()))
+    if not requested:
+        raise HTTPException(status_code=400, detail="Danh sách tác vụ cần chạy đang trống.")
+
+    queued_clusters = {
+        c.cluster_id for c in EventBufferQueue().load() if c.project_key == project_key
+    }
+    valid_ids = [cid for cid in requested if cid in queued_clusters]
+    if not valid_ids:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy tác vụ hợp lệ nào trong hàng đợi của dự án này.",
+        )
+
+    tasks = (
+        db.query(TaskModel)
+        .filter(TaskModel.project_key == project_key, TaskModel.cluster_id.in_(valid_ids))
+        .all()
+    )
+    changed = False
+    for task in tasks:
+        if task.status == "skipped":
+            task.status = "ready"
+            task.raw_status = "READY"
+            changed = True
+    if changed:
+        db.commit()
+
+    res = _queue_cycle(project_key, ",".join(valid_ids))
+    return {**res, "cluster_ids": valid_ids, "count": len(valid_ids)}
 
 
 @app.post("/api/tasks/{task_ref}/run")

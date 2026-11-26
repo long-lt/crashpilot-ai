@@ -187,10 +187,16 @@ def save_crash_detail(db: Session, project_key: str, detail: CrashDetail) -> Cra
     return model
 
 
-def get_all_issues(db: Session, project_key: Optional[str] = None) -> list[IssueModel]:
+def get_all_issues(
+    db: Session,
+    project_key: Optional[str] = None,
+    platform: Optional[str] = None,
+) -> list[IssueModel]:
     query = db.query(IssueModel)
     if project_key:
         query = query.filter(IssueModel.project_key == project_key)
+    if platform and platform.strip().lower() not in {"all", ""}:
+        query = query.filter(IssueModel.platform == platform.strip().lower())
     return query.order_by(IssueModel.events_count.desc()).all()
 
 

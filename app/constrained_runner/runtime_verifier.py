@@ -173,7 +173,10 @@ async def _run_web_cdp_async(
         resources.close()
 
 
-def _detect_flutter_device(flutter_bin: str) -> Optional[str]:
+def _detect_flutter_device(
+    flutter_bin: str,
+    preferred_id: Optional[str] = None,
+) -> tuple[Optional[str], str]:
     res = subprocess.run(
         [flutter_bin, "devices", "--machine"],
         capture_output=True,
@@ -181,21 +184,149 @@ def _detect_flutter_device(flutter_bin: str) -> Optional[str]:
         timeout=20,
     )
     if res.returncode != 0:
-        return None
+        return None, ""
     try:
         devices = json.loads(res.stdout)
+        if preferred_id:
+            for d in devices:
+                if str(d.get("id")) == preferred_id:
+                    return preferred_id, str(d.get("targetPlatform") or "").lower()
+            return preferred_id, ""
         for d in devices:
             target = str(d.get("targetPlatform") or "").lower()
-            if "android" in target or "ios" in target:
-                return str(d.get("id"))
+            if "ios" in target or "android" in target:
+                return str(d.get("id")), target
     except Exception:
-        return None
-    return None
+        return None, ""
+    return None, ""
+
+
+def _run_ios_simulator_smoke(
+    flutter_bin: str,
+    repo_root: Path,
+    device_id: str,
+    cfg: RuntimeVerifierConfig,
+    artifacts_dir: Path,
+    outcome: RuntimeVerifyOutcome,
+    outputs: list[str],
+) -> None:
+    """Build thật bản iOS Simulator debug, cài đặt, mở app trên Simulator, kiểm tra sống & chụp ảnh."""
+    import plistlib
+    import re
+
+    xcrun = shutil.which("xcrun")
+    if not xcrun:
+        outcome.passed = False
+        outputs.append("[iOS Simulator] Không tìm thấy lệnh xcrun trên máy.")
+        return
+
+    build_timeout = max(int(cfg.timeout_sec or 180), 180)
+    build_res = subprocess.run(
+        [flutter_bin, "build", "ios", "--simulator", "--debug"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        timeout=build_timeout,
+    )
+    build_tail = (build_res.stdout + "\n" + build_res.stderr).strip()[-1500:]
+    outputs.append(f"[flutter build ios --simulator --debug] (exit {build_res.returncode})\n{build_tail}")
+    if build_res.returncode != 0:
+        outcome.passed = False
+        return
+
+    sim_dir = repo_root / "build" / "ios" / "iphonesimulator"
+    app_bundles = sorted(sim_dir.glob("*.app")) if sim_dir.is_dir() else []
+    if not app_bundles:
+        outcome.passed = False
+        outputs.append(f"[iOS Simulator] Không tìm thấy file .app sau khi build tại {sim_dir}.")
+        return
+    app_path = app_bundles[0]
+
+    info_plist = app_path / "Info.plist"
+    bundle_id = ""
+    if info_plist.is_file():
+        try:
+            with info_plist.open("rb") as f:
+                plist_data = plistlib.load(f)
+            bundle_id = str(plist_data.get("CFBundleIdentifier") or "").strip()
+        except Exception:
+            bundle_id = ""
+    if not bundle_id:
+        outcome.passed = False
+        outputs.append(f"[iOS Simulator] Không đọc được CFBundleIdentifier từ {info_plist}.")
+        return
+
+    install_res = subprocess.run(
+        [xcrun, "simctl", "install", device_id, str(app_path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if install_res.returncode != 0:
+        outcome.passed = False
+        outputs.append(f"[xcrun simctl install] FAIL: {(install_res.stdout + install_res.stderr).strip()[-600:]}")
+        return
+
+    launch_res = subprocess.run(
+        [xcrun, "simctl", "launch", device_id, bundle_id],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    launch_out = (launch_res.stdout + "\n" + launch_res.stderr).strip()
+    if launch_res.returncode != 0:
+        outcome.passed = False
+        outputs.append(f"[xcrun simctl launch {bundle_id}] FAIL: {launch_out[-600:]}")
+        return
+
+    m_pid = re.search(r":\s*(\d+)", launch_out)
+    app_pid = int(m_pid.group(1)) if m_pid else None
+
+    # Đợi app khởi động và render trên iOS Simulator
+    time.sleep(4.0)
+
+    alive = True
+    if app_pid:
+        try:
+            os.kill(app_pid, 0)
+        except OSError:
+            alive = False
+
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    shot_path = artifacts_dir / "runtime_4b_ios_simulator.png"
+    shot_res = subprocess.run(
+        [xcrun, "simctl", "io", device_id, "screenshot", str(shot_path)],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    if shot_res.returncode == 0 and shot_path.is_file():
+        outcome.screenshot_path = str(shot_path)
+
+    # Dừng app gọn gàng sau khi kiểm tra
+    subprocess.run(
+        [xcrun, "simctl", "terminate", device_id, bundle_id],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+    if not alive:
+        outcome.passed = False
+        outputs.append(
+            f"[iOS Simulator Smoke] FAIL: App {bundle_id} (PID {app_pid}) bị thoát/crash trong 4 giây đầu sau khi mở."
+        )
+    else:
+        outputs.append(
+            f"[iOS Simulator Smoke] PASS: Đã build, cài đặt và mở {bundle_id} (PID {app_pid}) "
+            f"ổn định trên Simulator {device_id} (không crash khi khởi động)."
+        )
 
 
 def _run_flutter_mobile(
     repo_root: Path,
     cfg: RuntimeVerifierConfig,
+    artifacts_dir: Path,
 ) -> RuntimeVerifyOutcome:
     flutter_bin = shutil.which("flutter")
     if not flutter_bin:
@@ -203,13 +334,13 @@ def _run_flutter_mobile(
             executed=False, mode="flutter_mobile", passed=False, skipped_reason="Không tìm thấy lệnh flutter trong PATH."
         )
 
-    device_id = cfg.device_id or _detect_flutter_device(flutter_bin)
+    device_id, target_platform = _detect_flutter_device(flutter_bin, preferred_id=cfg.device_id)
     if not device_id:
         return RuntimeVerifyOutcome(
             executed=False,
             mode="flutter_mobile",
-            passed=True,
-            skipped_reason="Không có Android Emulator / iOS Simulator nào đang bật — bỏ qua runtime mobile.",
+            passed=False,
+            skipped_reason="Không có Android Emulator / iOS Simulator nào đang bật — không thể chạy kiểm định 4B Runtime Mobile.",
         )
 
     outcome = RuntimeVerifyOutcome(executed=True, mode="flutter_mobile", passed=True)
@@ -257,6 +388,10 @@ def _run_flutter_mobile(
         if m_res.returncode != 0 or "CRASH:" in m_out or "ANR" in m_out:
             outcome.passed = False
 
+    # 3. Nếu repo chưa có integration_test và đang chạy trên iOS Simulator -> build & launch smoke test thật
+    if not outputs and "ios" in target_platform:
+        _run_ios_simulator_smoke(flutter_bin, repo_root, device_id, cfg, artifacts_dir, outcome, outputs)
+
     if not outputs:
         outcome.executed = False
         outcome.passed = False
@@ -275,7 +410,7 @@ def run_runtime_verifier(
         return RuntimeVerifyOutcome(executed=False, mode="disabled", passed=True, skipped_reason="runtime_verifier chưa bật")
 
     if cfg.mode == "flutter_mobile":
-        return _run_flutter_mobile(repo_root, cfg)
+        return _run_flutter_mobile(repo_root, cfg, artifacts_dir)
 
     # Chạy Playwright async trên thread riêng để an toàn khi gọi bên trong asyncio event loop
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:

@@ -102,24 +102,153 @@ def _run_effective_status(run: dict[str, Any]) -> str:
     return st or "PENDING"
 
 
+WORKFLOW_STATUSES = (
+    "TODO",
+    "IN_PROGRESS",
+    "IN_REVIEW",
+    "DONE",
+    "CANCELLED",
+    "BLOCKED",
+    "ON_HOLD",
+    "REOPENED",
+)
+
+
+def _is_missing_repo_run(run: Optional[dict[str, Any]]) -> bool:
+    if not run:
+        return False
+    for s in run.get("steps") or []:
+        if (s.get("step_number") or s.get("step")) == 1:
+            summary = str(s.get("summary") or "")
+            det = s.get("details") or {}
+            if "repository không tồn tại" in summary.lower() or det.get("reason") == "missing_repo":
+                return True
+    return False
+
+
+def extract_failure_info(
+    latest_run: Optional[dict[str, Any]],
+    runs_dir: Path = Path("data/runs"),
+) -> Optional[dict[str, Any]]:
+    """Trích xuất bước bị lỗi/chặn và lý do chi tiết thực tế để hiển thị & cho phép Retry từ bước đó."""
+    if not latest_run or _is_missing_repo_run(latest_run):
+        return None
+    failed_step = next(
+        (s for s in (latest_run.get("steps") or []) if s.get("status") in {"failed", "blocked"}),
+        None,
+    )
+    if not failed_step:
+        return None
+    step_num = int(failed_step.get("step_number") or failed_step.get("step") or 1)
+    step_name = str(failed_step.get("name") or f"Step {step_num}")
+    summary = str(failed_step.get("summary") or "")
+    det = failed_step.get("details") or {}
+
+    detail_parts: list[str] = []
+    rv = det.get("runtime_verifier") or {}
+    if rv.get("passed") is False:
+        rv_msg = (
+            rv.get("skipped_reason")
+            or rv.get("mobile_output")
+            or "; ".join(str(e) for e in (rv.get("page_errors") or rv.get("console_errors") or rv.get("server_errors") or [])[:2])
+        )
+        if rv_msg:
+            detail_parts.append(f"4B Runtime ({rv.get('mode') or 'runtime'}): {str(rv_msg).strip()[:320]}")
+    va = det.get("verifier_agent") or {}
+    if va.get("error"):
+        detail_parts.append(str(va["error"]).strip())
+    elif va.get("verdict_text") and va.get("passed") is False:
+        detail_parts.append(str(va["verdict_text"]).strip()[:400])
+    if det.get("diff_violations"):
+        detail_parts.append("Diff violations: " + "; ".join(str(v) for v in det["diff_violations"][:3]))
+    for chk in det.get("verify_checks") or []:
+        if chk.get("passed") is False:
+            tail = " ".join(str(chk.get("output_tail") or "").splitlines())[-220:]
+            detail_parts.append(f"{chk.get('cmd')} (exit {chk.get('exit_code')}): {tail}")
+            break
+    for att in (det.get("attempts") or [])[-1:]:
+        exec_info = att.get("executor") or {}
+        if exec_info.get("error"):
+            detail_parts.append(str(exec_info["error"]).strip()[:260])
+        for chk in att.get("checks") or []:
+            if chk.get("passed") is False:
+                tail = " ".join(str(chk.get("output_tail") or "").splitlines())[-220:]
+                detail_parts.append(f"{chk.get('cmd')} (exit {chk.get('exit_code')}): {tail}")
+                break
+
+    run_id = str(latest_run.get("run_id") or "")
+    art_dir = runs_dir / run_id if run_id else None
+    worktree_ok = bool(art_dir and (art_dir / "worktree").is_dir())
+    can_resume = bool(run_id and step_num >= 3 and worktree_ok)
+
+    return {
+        "step_number": step_num,
+        "step_code": f"Bước {step_num}",
+        "step_name": step_name,
+        "summary": summary,
+        "detail": "\n".join(p for p in detail_parts if p)[:600],
+        "run_id": run_id,
+        "can_resume": can_resume,
+        "resume_step": step_num if can_resume else 1,
+    }
+
+
+def map_workflow_status(
+    task: TaskModel,
+    latest_run: Optional[dict[str, Any]] = None,
+) -> str:
+    """Ánh xạ về 8 trạng thái chuẩn: TODO, IN_PROGRESS, IN_REVIEW, DONE, CANCELLED, BLOCKED, ON_HOLD, REOPENED."""
+    raw = str(task.raw_status or "").strip().upper()
+    if raw in WORKFLOW_STATUSES:
+        if raw == "BLOCKED" and _is_missing_repo_run(latest_run):
+            return "TODO"
+        return raw
+    st = str(task.status or "").strip().lower()
+    if st in {"skipped", "cancelled"}:
+        return "CANCELLED"
+    if st == "on_hold":
+        return "ON_HOLD"
+    if st == "reopened":
+        return "REOPENED"
+    if st == "running":
+        return "IN_PROGRESS"
+    if st in {"verifying", "preview"} or raw in {
+        "PR_CREATED",
+        "AUTO_MERGE_REQUESTED",
+        "VERIFIED_READY_FOR_PR",
+        "PUSHED_BRANCH",
+        "DRY_RUN_VERIFIED",
+    }:
+        return "IN_REVIEW"
+    if st == "completed" or raw in {"AUTO_MERGED", "VERIFIED_NO_CHANGES", "PR_CLOSED"}:
+        return "DONE"
+    if st == "failed":
+        if _is_missing_repo_run(latest_run):
+            return "TODO"
+        return "BLOCKED"
+    return "TODO"
+
+
 def derive_task_status_from_run(run: Optional[dict[str, Any]]) -> tuple[str, str]:
     """Trả về (task_status, raw_status)."""
     if not run:
-        return "ready", "READY"
+        return "ready", "TODO"
+    if _is_missing_repo_run(run):
+        return "ready", "TODO"
     raw = _run_effective_status(run)
     group = classify_run_status(raw)
     if group == "running":
         cur_step = run.get("current_step")
         if cur_step == 4:
-            return "verifying", raw
-        return "running", raw
+            return "verifying", "IN_REVIEW"
+        return "running", "IN_PROGRESS"
     if group == "completed":
         return "completed", raw
     if group == "preview":
         return "preview", raw
     if group == "failed":
         return "failed", raw
-    return "ready", raw
+    return "ready", "TODO"
 
 
 def sync_tasks_for_project(
@@ -363,6 +492,10 @@ def serialize_task(
     primary_source = sources[0] if sources else "Crashlytics"
     # Tương thích ngược với UI filter cũ ('ready' vẫn có thể hiển thị status_group chuẩn)
     ui_status = "pending" if task.status == "ready" else ("running" if task.status == "verifying" else task.status)
+    workflow_status = map_workflow_status(task, latest_run)
+    failure_info = extract_failure_info(latest_run)
+    if workflow_status == "TODO" and ui_status == "failed":
+        ui_status = "pending"
     return {
         "task_id": task.task_id,
         "id": task.cluster_id,  # giữ `id` tương thích ngược cho các liên kết theo cluster_id
@@ -376,8 +509,10 @@ def serialize_task(
         "specialist": task.specialist,
         "specialist_label": specialist_label(task.specialist),
         "lifecycle_status": task.status,  # ready | running | verifying | completed | preview | failed | skipped
+        "workflow_status": workflow_status,  # TODO | IN_PROGRESS | IN_REVIEW | DONE | CANCELLED | BLOCKED | ON_HOLD | REOPENED
         "status": ui_status,  # pending | running | completed | preview | failed | skipped
         "raw_status": task.raw_status,
+        "failure_info": failure_info,
         "source": primary_source,
         "sources": sources,
         "events_count": task.events_count,
@@ -430,25 +565,37 @@ def extract_verification_matrix(run: dict[str, Any], runs_dir: Path = Path("data
 
     # --- 4B: Runtime Verifier (Web CDP / Flutter Mobile) ---
     rv = s4_det.get("runtime_verifier") or {}
+    explicit_4b = s4_det.get("stage_4b")
     if not s4:
-        st_4b = "WAIT" if is_running else "SKIP"
+        st_4b = "WAIT" if is_running else "BLOCKED"
     elif s4.get("status") == "running":
         st_4b = "RUN" if st_4a == "PASS" else "WAIT"
+    elif st_4a == "FAIL":
+        st_4b = "BLOCKED"
+    elif explicit_4b in {"PASS", "FAIL", "BLOCKED", "WAIT", "RUN"}:
+        st_4b = explicit_4b
+    elif rv.get("passed") is False:
+        st_4b = "FAIL"
     elif rv.get("executed"):
         st_4b = "PASS" if rv.get("passed", True) else "FAIL"
     else:
-        st_4b = "SKIP"
+        st_4b = "BLOCKED" if s4.get("status") in {"failed", "blocked"} else "SKIP"
 
     # --- 4C: Independent Verifier AI Agent ---
     va = s4_det.get("verifier_agent") or {}
+    explicit_4c = s4_det.get("stage_4c")
     if not s4:
-        st_4c = "WAIT" if is_running else "SKIP"
+        st_4c = "WAIT" if is_running else "BLOCKED"
     elif s4.get("status") == "running":
         st_4c = "WAIT"
+    elif st_4a == "FAIL" or st_4b == "FAIL":
+        st_4c = "BLOCKED"
+    elif explicit_4c in {"PASS", "FAIL", "BLOCKED", "WAIT", "RUN"}:
+        st_4c = explicit_4c
     elif va.get("executed"):
         st_4c = "PASS" if va.get("passed", True) else "FAIL"
     else:
-        st_4c = "SKIP"
+        st_4c = "BLOCKED" if s4.get("status") in {"failed", "blocked"} else "SKIP"
 
     # --- Overall Result ---
     if is_running:

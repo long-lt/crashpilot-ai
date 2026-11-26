@@ -6,8 +6,8 @@
 #                                  (Tự động dừng server cũ trên cùng cổng nếu đang chạy; Ctrl+C để dừng).
 #                                     Tuỳ chỉnh: CRASHPILOT_SYNC_INTERVAL_MIN=30 CRASHPILOT_PORT=8787 ./run.sh
 #   ./run.sh stop                  Dừng Web Dashboard đang chạy trên cổng cấu hình
-#   ./run.sh setup                 Cài venv, dependencies, Chromium (lần đầu)
-#   ./run.sh login                 Mở trình duyệt để đăng nhập Google (khi session hết hạn)
+#   ./run.sh setup                 Cài venv và dependencies (lần đầu)
+#   ./run.sh login                 Đăng nhập Google cho nguồn Crashlytics
 #   ./run.sh sync [args...]        Đồng bộ Crashlytics -> SQLite (VD: ./run.sh sync --limit 10)
 #   ./run.sh serve                 Chạy Web Dashboard (http://127.0.0.1:8787)
 #   ./run.sh all                   Sync một lần rồi bật Dashboard
@@ -17,6 +17,7 @@
 #   ./run.sh cron-remove           Gỡ lịch cron & LaunchAgent thức dậy
 #   ./run.sh cron-status           Xem lịch thức dậy hiện tại + log gần nhất
 #   ./run.sh morning-audit [--ai]  Giai đoạn 5: Lấy mẫu kiểm tra buổi sáng & đề xuất nâng cấp luật
+#   ./run.sh retry-task <TASK>     Chạy tiếp task từ bước lỗi (VD: ./run.sh retry-task TASK-1012 --from-step 3)
 #   ./run.sh logs                  Theo dõi log sync realtime
 
 set -euo pipefail
@@ -48,14 +49,13 @@ cmd_setup() {
   [[ -d .venv ]] || "$py" -m venv .venv
   "$VENV_PY" -m pip install --upgrade pip -q
   "$VENV_PY" -m pip install -e ".[dev]" -q
-  "$VENV_PY" -m playwright install chromium
   [[ -f .env ]] || cp .env.example .env
   log "Setup xong. Tiếp theo: ./run.sh login"
 }
 
 cmd_login() {
   require_venv
-  "$VENV_PY" -m app.main browser-check
+  "$VENV_PY" -m app.main login
 }
 
 # The shell keeps fd 9 open for the duration of sync/cycle. The kernel releases
@@ -356,6 +356,7 @@ case "$command" in
   wakeup-remove)  cmd_cron_remove ;;
   wakeup-status)  cmd_cron_status ;;
   morning-audit)  require_venv; "$VENV_PY" -m app.main morning-audit "$@" ;;
+  retry-task|retry-step) require_venv; "$VENV_PY" -m app.main retry-task "$@" ;;
   collect)        require_venv; "$VENV_PY" -m app.main collect "$@" ;;
   clusters)       require_venv; "$VENV_PY" -m app.main clusters "$@" ;;
   execute)        require_venv; "$VENV_PY" -m app.main execute "$@" ;;

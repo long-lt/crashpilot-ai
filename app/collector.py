@@ -7,7 +7,15 @@ from typing import Optional
 
 from app.browser.extractor import CrashlyticsExtractor
 from app.browser.session import FirebaseBrowser
-from app.config import Settings, get_project_console_urls, load_projects, project_sources
+from app.config import (
+    Settings,
+    get_project_console_urls,
+    load_projects,
+    project_sources,
+    resolve_crashlytics_backend,
+)
+from app.crashlytics import CrashlyticsClient
+from app.firebase_cli import FirebaseCliAuthError, FirebaseCliClient, FirebaseCliError
 from app.db.database import SessionLocal, init_db
 from app.db.repository import (
     save_crash_detail,
@@ -25,7 +33,7 @@ async def sync_crashlytics(
     headless: bool = True,
     projects_file: str | None = None,
 ) -> dict:
-    """Sync crash issues and details from Firebase Console into local database."""
+    """Sync Firebase crashes into the local database."""
     init_db()
     settings = Settings()
     all_projects = load_projects(projects_file)
@@ -48,9 +56,10 @@ async def sync_crashlytics(
     finally:
         db.close()
 
-    browser = FirebaseBrowser(settings.browser_profile, headless=headless)
-    page = await browser.start()
-    extractor = CrashlyticsExtractor(page)
+    grouped: dict[str, list[dict]] = {"firebase_cli": [], "api": [], "browser": []}
+    for project in projects:
+        backend = resolve_crashlytics_backend(project, settings)
+        grouped[backend].append(project)
 
     results = {
         "synced_projects": 0,
@@ -59,9 +68,29 @@ async def sync_crashlytics(
         "errors": [],
     }
 
+    def _merge(part: dict) -> None:
+        results["synced_projects"] += part.get("synced_projects", 0)
+        results["total_issues_found"] += part.get("total_issues_found", 0)
+        results["details_extracted"] += part.get("details_extracted", 0)
+        results["errors"].extend(part.get("errors", []))
+
+    if grouped["firebase_cli"]:
+        _merge(await asyncio.to_thread(_sync_firebase_cli, grouped["firebase_cli"], fetch_details_limit))
+
+    if grouped["api"]:
+        _merge(await asyncio.to_thread(_sync_api, grouped["api"], fetch_details_limit))
+
+    if not grouped["browser"]:
+        return results
+
+    browser_projects = grouped["browser"]
+    browser = FirebaseBrowser(settings.browser_profile, headless=headless)
+    page = await browser.start()
+    extractor = CrashlyticsExtractor(page)
+
     seen_urls: set[str] = set()
     try:
-        for project in projects:
+        for project in browser_projects:
             p_key = project["key"]
             try:
                 p_id = project["firebase_project_id"]
@@ -175,6 +204,128 @@ async def sync_crashlytics(
     finally:
         await browser.close()
 
+    return results
+
+
+def _sync_api(projects: list[dict], fetch_details_limit: int) -> dict:
+    from google.auth.exceptions import DefaultCredentialsError, RefreshError
+
+    results = {"synced_projects": 0, "total_issues_found": 0, "details_extracted": 0, "errors": []}
+    projects = [
+        project for project in projects
+        if project.get("firebase_project_id") or project.get("firebase_app_ids")
+        or get_project_console_urls(project)
+    ]
+    if not projects:
+        return results
+
+    try:
+        session = CrashlyticsClient.authorize()
+    except DefaultCredentialsError:
+        results["errors"] = [
+            {"project": project["key"], "error": "Google login required. Run ./run.sh login."}
+            for project in projects
+        ]
+        return results
+
+    with session:
+        client = CrashlyticsClient(session)
+        for project in projects:
+            project_key = project["key"]
+            try:
+                if not project.get("firebase_project_id"):
+                    raise ValueError("Missing firebase_project_id in the project configuration.")
+                app_ids = client.app_ids(project)
+                project_failed = False
+                with SessionLocal() as db:
+                    for app_id in app_ids:
+                        try:
+                            issues = list(client.issues(project, app_id))
+                            results["total_issues_found"] += len(issues)
+                            for issue in issues:
+                                save_or_update_issue(db, issue)
+                            for issue in issues[:max(fetch_details_limit, 0)]:
+                                detail = client.detail(app_id, issue.issue_id)
+                                if detail is not None:
+                                    save_crash_detail(db, project_key, detail)
+                                    results["details_extracted"] += 1
+                        except RefreshError:
+                            raise
+                        except Exception as exc:
+                            db.rollback()
+                            project_failed = True
+                            results["errors"].append({"project": project_key, "error": str(exc)})
+                            logger.exception("Crashlytics sync failed for %s / %s", project_key, app_id)
+                    if not project_failed:
+                        update_project_sync_time(db, project_key)
+                        results["synced_projects"] += 1
+            except RefreshError:
+                results["errors"].append({
+                    "project": project_key,
+                    "error": "Google login required. Run ./run.sh login.",
+                })
+            except Exception as exc:
+                results["errors"].append({"project": project_key, "error": str(exc)})
+                logger.exception("Crashlytics sync failed for %s", project_key)
+    return results
+
+
+def _sync_firebase_cli(projects: list[dict], fetch_details_limit: int) -> dict:
+    results = {"synced_projects": 0, "total_issues_found": 0, "details_extracted": 0, "errors": []}
+    projects = [
+        project for project in projects
+        if project.get("firebase_project_id") or project.get("firebase_app_ids")
+        or get_project_console_urls(project)
+    ]
+    if not projects:
+        return results
+
+    try:
+        client = FirebaseCliClient()
+        client.start()
+    except FirebaseCliError as exc:
+        results["errors"] = [{"project": project["key"], "error": str(exc)} for project in projects]
+        return results
+
+    try:
+        for project in projects:
+            project_key = project["key"]
+            try:
+                if not project.get("firebase_project_id"):
+                    raise ValueError("Missing firebase_project_id in the project configuration.")
+                app_ids = client.app_ids(project)
+                project_failed = False
+                with SessionLocal() as db:
+                    for app_id in app_ids:
+                        try:
+                            issues = list(client.issues(project, app_id))
+                            results["total_issues_found"] += len(issues)
+                            for issue in issues:
+                                save_or_update_issue(db, issue)
+                            for issue in issues[:max(fetch_details_limit, 0)]:
+                                detail = client.detail(app_id, issue.issue_id)
+                                if detail is not None:
+                                    save_crash_detail(db, project_key, detail)
+                                    results["details_extracted"] += 1
+                        except FirebaseCliAuthError:
+                            raise
+                        except Exception as exc:
+                            db.rollback()
+                            project_failed = True
+                            results["errors"].append({"project": project_key, "error": str(exc)})
+                            logger.exception(
+                                "Firebase CLI Crashlytics sync failed for %s / %s", project_key, app_id
+                            )
+                    if not project_failed:
+                        update_project_sync_time(db, project_key)
+                        results["synced_projects"] += 1
+            except FirebaseCliAuthError as exc:
+                results["errors"].append({"project": project_key, "error": str(exc)})
+            except Exception as exc:
+                results["errors"].append({"project": project_key, "error": str(exc)})
+                logger.exception("Firebase CLI Crashlytics sync failed for %s", project_key)
+    finally:
+        client.close()
     return results
 
 

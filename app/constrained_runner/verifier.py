@@ -79,6 +79,8 @@ def run_independent_verification(
     cmds = verify_commands or detect_independent_verify_checks(repo_root)
     checks_log: list[dict[str, Any]] = []
     all_ok = len(diff_violations) == 0
+    if not all_ok:
+        return VerificationResult(passed=False, diff_violations=diff_violations, checks=checks_log)
 
     for cmd in cmds:
         try:
@@ -87,19 +89,21 @@ def run_independent_verification(
             else:
                 res = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True, timeout=timeout_sec)
             passed = res.returncode == 0
-            if not passed:
-                all_ok = False
             checks_log.append(
                 {
                     "cmd": " ".join(cmd),
                     "exit_code": res.returncode,
                     "passed": passed,
-                    "output_tail": (res.stdout + "\n" + res.stderr).strip()[-600:],
+                    "output_tail": (res.stdout + "\n" + res.stderr).strip()[-2500:],
                 }
             )
+            if not passed:
+                all_ok = False
+                break
         except Exception as exc:
             all_ok = False
             checks_log.append({"cmd": " ".join(cmd), "exit_code": -1, "passed": False, "output_tail": str(exc)})
+            break
 
     return VerificationResult(passed=all_ok, diff_violations=diff_violations, checks=checks_log)
 
@@ -260,7 +264,11 @@ def commit_push_and_create_pr(
         stage = "git push"
         remote = run("git", "remote", "get-url", "origin")
         if not outcome.pushed:
-            run("git", "push", "origin", f"{head}:refs/heads/{branch_name}")
+            push_args = ["git", "push"]
+            if branch_name.startswith("crashpilot/"):
+                push_args.append("--force")
+            push_args.extend(["origin", f"{head}:refs/heads/{branch_name}"])
+            run(*push_args)
             outcome.pushed = True
 
         gh = shutil.which("gh")
@@ -269,13 +277,23 @@ def commit_push_and_create_pr(
         if not gh or "github.com" not in remote:
             return outcome
         stage = "gh pr create"
-        if previous and not outcome.pr_url:
-            # A timed-out create may already have been accepted by GitHub.
-            found = run(gh, "pr", "list", "--state", "all", "--head", branch_name, "--base", base_branch,
-                        "--json", "headRefOid,url", "--jq", f'.[] | select(.headRefOid == "{head}") | .url')
-            if found:
-                outcome.pr_url = found.splitlines()[0]
         if not outcome.pr_url:
+            if previous:
+                # A timed-out create may already have been accepted by GitHub.
+                found = run(gh, "pr", "list", "--state", "all", "--head", branch_name, "--base", base_branch,
+                            "--json", "headRefOid,url", "--jq", f'.[] | select(.headRefOid == "{head}") | .url')
+                if found:
+                    outcome.pr_url = found.splitlines()[0]
+            if not outcome.pr_url and branch_name.startswith("crashpilot/"):
+                # Nếu nhánh crashpilot/* đã có PR đang mở từ lượt kiểm định trước, cập nhật lại PR đó thay vì báo lỗi trùng.
+                existing = run(gh, "pr", "list", "--state", "open", "--head", branch_name, "--base", base_branch,
+                               "--json", "url", "--jq", ".[0].url // empty")
+                if existing:
+                    outcome.pr_url = existing.splitlines()[0].strip()
+                    stage = "gh pr edit"
+                    run(gh, "pr", "edit", outcome.pr_url, "--title", pr_title, "--body-file", str(pr_body_path.resolve()))
+        if not outcome.pr_url:
+            stage = "gh pr create"
             outcome.pr_url = run(gh, "pr", "create", "--base", base_branch, "--head", branch_name,
                                  "--title", pr_title, "--body-file", str(pr_body_path.resolve()))
         if not outcome.pr_url:

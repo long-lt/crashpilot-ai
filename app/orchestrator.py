@@ -141,7 +141,14 @@ async def run_autopilot_cycle(
 ) -> CycleSummary:
     """Chạy toàn bộ chu trình khép kín: Nguồn (projects.yaml) -> Gom cụm -> Quy trình 4 bước."""
     projects = load_projects(projects_file)
-    if cluster_id and not project_key:
+    target_cluster_ids = [
+        cid.strip()
+        for cid in str(cluster_id or "").split(",")
+        if cid.strip()
+    ]
+    target_cluster_set = set(target_cluster_ids)
+    has_target_clusters = bool(target_cluster_set)
+    if has_target_clusters and not project_key:
         raise ValueError("Cần chọn dự án của tác vụ.")
     if project_key:
         projects = [p for p in projects if p["key"] == project_key]
@@ -151,7 +158,7 @@ async def run_autopilot_cycle(
     resolved_scan_state = Path(scan_state_path) if scan_state_path else Path(store_path).with_name("scan_state.json")
     now_utc = datetime.now(timezone.utc)
     scan_state = _load_scan_state(resolved_scan_state)
-    if respect_schedule and not project_key and not cluster_id:
+    if respect_schedule and not project_key and not has_target_clusters:
         due_projects = [p for p in projects if _is_project_due(p, scan_state, now_utc)]
         if not due_projects:
             print("\n>>> [Skip] Chưa đến chu kỳ quét tiếp theo cho các dự án đang bật.")
@@ -169,7 +176,7 @@ async def run_autopilot_cycle(
     # --- GIAI ĐOẠN 1A: Kéo dữ liệu nguồn trực tiếp (Firebase Crashlytics) ---
     sync_results: Optional[dict] = None
     login_required = False
-    if has_crashlytics and not skip_browser_sync and not cluster_id:
+    if has_crashlytics and not skip_browser_sync and not has_target_clusters:
         print("\n>>> [Giai đoạn 1/3] Đồng bộ nguồn Firebase Crashlytics từ projects.yaml...")
         if len(due_keys) == 1:
             sync_target = next(iter(due_keys))
@@ -188,7 +195,7 @@ async def run_autopilot_cycle(
     # --- GIAI ĐOẠN 1B: Thu thập ngữ cảnh mọi nguồn & Gom cụm Pattern ---
     print("\n>>> [Giai đoạn 2/3] Thu thập ngữ cảnh đa nguồn & Gom cụm nguyên nhân gốc...")
     collection = manager.collect_all(project_key=project_key)
-    if cluster_id and not any(c.cluster_id == cluster_id for c in collection.clusters):
+    if has_target_clusters and not any(c.cluster_id in target_cluster_set for c in collection.clusters):
         raise ValueError("Tác vụ đã rời hàng đợi.")
     for st in collection.statuses:
         print(f"  - [{st.status.upper():<12}] {st.source:<14}: {st.message}")
@@ -219,7 +226,7 @@ async def run_autopilot_cycle(
                     pk,
                     cls_dicts,
                     run_dicts,
-                    record_discovery=not bool(cluster_id),
+                    record_discovery=not has_target_clusters,
                     events_collected=sum(
                         c.event_count for c in collection.clusters if c.project_key == pk
                     ),
@@ -252,7 +259,7 @@ async def run_autopilot_cycle(
     active_repos = {(p["key"], p.get("repository_path")) for p in projects}
     for prev in existing_runs:
         if (prev.overall_status == "AUTO_MERGE_REQUESTED" and (prev.project_key, prev.repository_path) in active_repos
-                and (not cluster_id or prev.cluster_id == cluster_id)):
+                and (not has_target_clusters or prev.cluster_id in target_cluster_set)):
             runner.refresh_requested_merge(prev)
         key = (prev.project_key, aliases.get((prev.project_key, prev.cluster_id), prev.cluster_id))
         if key not in latest_by_cluster:
@@ -280,7 +287,7 @@ async def run_autopilot_cycle(
     skipped_missing_repo_projects: set[str] = set()
 
     for cluster in collection.clusters:
-        if cluster_id and cluster.cluster_id != cluster_id:
+        if has_target_clusters and cluster.cluster_id not in target_cluster_set:
             continue
         proj = project_map.get(cluster.project_key)
         if not proj:
@@ -291,16 +298,24 @@ async def run_autopilot_cycle(
 
         max_per_cycle = int(exec_cfg.get("max_clusters_per_cycle", 3))
         used = per_project_count.get(cluster.project_key, 0)
-        if not cluster_id and used >= max_per_cycle:
+        if not has_target_clusters and used >= max_per_cycle:
             continue
 
-        repo_path = proj.get("repository_path") or ""
+        repo_path = str(proj.get("repository_path") or "").strip()
         repo_exists = bool(repo_path and Path(repo_path).expanduser().is_dir())
-        if not cluster_id and not repo_exists and (cluster.project_key, repo_path) in blocked_project_repos:
+        if not repo_path and not has_target_clusters:
             if cluster.project_key not in skipped_missing_repo_projects:
                 skipped_missing_repo_projects.add(cluster.project_key)
                 print(
-                    f"  * [skip] [{cluster.project_key}] đã có bản ghi BLOCKED với repo chưa tồn tại "
+                    f"  * [todo] [{cluster.project_key}] chưa gắn repository local "
+                    "— giữ trạng thái TODO (chưa chạy), vào Settings để gắn Source Code Local."
+                )
+            continue
+        if not has_target_clusters and not repo_exists and (cluster.project_key, repo_path) in blocked_project_repos:
+            if cluster.project_key not in skipped_missing_repo_projects:
+                skipped_missing_repo_projects.add(cluster.project_key)
+                print(
+                    f"  * [skip] [{cluster.project_key}] đã có bản ghi chờ gắn repo "
                     f"'{repo_path}' — không tạo thêm bản ghi trùng."
                 )
             continue
@@ -327,7 +342,7 @@ async def run_autopilot_cycle(
                 "DRY_RUN_VERIFIED", "PR_CREATED", "PUSHED_BRANCH", "AUTO_MERGE_REQUESTED", "AUTO_MERGED", "PR_CLOSED",
             }
             pending_checklist = not prev_run.dry_run and any(e.checklist_item for e in cluster.events)
-            if not cluster_id and same_mode and verified and not pending_checklist and (
+            if not has_target_clusters and same_mode and verified and not pending_checklist and (
                 prev_run.cluster_impact is None or prev_run.cluster_impact >= cluster.total_impact
             ):
                 print(
@@ -338,7 +353,7 @@ async def run_autopilot_cycle(
 
             fail_count, failed_base = consecutive_failures.get((cluster.project_key, cluster.cluster_id), (0, None))
             max_fail_streak = int(exec_cfg.get("max_consecutive_failures", 2))
-            if not cluster_id and same_mode and not prev_run.dry_run and fail_count >= max_fail_streak and repo_exists:
+            if not has_target_clusters and same_mode and not prev_run.dry_run and fail_count >= max_fail_streak and repo_exists:
                 cur_head = None
                 try:
                     import subprocess as _sp
@@ -407,7 +422,7 @@ async def run_autopilot_cycle(
             if own_db:
                 sess.close()
 
-    if not cluster_id:
+    if not has_target_clusters:
         finished_iso = datetime.now(timezone.utc).isoformat()
         for k in due_keys:
             scan_state[k] = finished_iso

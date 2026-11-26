@@ -1953,8 +1953,28 @@
     .task-filters [aria-pressed="true"] { color:var(--accent); background:var(--accent-soft); border-color:var(--accent); }
     .task-filters button span { font-variant-numeric:tabular-nums; }
     .task-inbox-list, .task-history ul { list-style:none; padding:0; margin:0; }
-    .task-inbox-row { display:grid; width:100%; grid-template-columns:minmax(0,1fr) auto 116px 10px; align-items:center; gap:14px; padding:14px 6px; background:transparent; color:var(--ink); font:inherit; text-align:start; border:0; border-top:1px solid var(--border); cursor:pointer; }
+    .task-inbox-row { display:grid; width:100%; grid-template-columns:minmax(0,1fr) auto 10px; align-items:center; gap:10px; padding:12px 10px; background:transparent; color:var(--ink); font:inherit; text-align:start; border:0; border-top:1px solid var(--border); border-left:3px solid transparent; cursor:pointer; border-radius:4px; }
     .task-inbox-row:hover, .task-inbox-row:focus-visible { background:var(--surface-muted); }
+    .task-inbox-row.active { background:color-mix(in srgb, var(--accent) 9%, transparent); border-left-color:var(--accent); }
+    .tasks-pipeline-split { display:grid; grid-template-columns:minmax(320px, 38%) minmax(0, 1fr); gap:16px; align-items:start; }
+    .tasks-master-col { position:sticky; top:16px; }
+    .tasks-master-col .task-inbox-list { max-height:66vh; overflow-y:auto; padding-right:2px; }
+    .tasks-detail-col { min-width:0; }
+    .pipeline-strip-4 { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; margin:12px 0 14px; }
+    .pipeline-step-pill { padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-muted); display:flex; flex-direction:column; gap:4px; transition:border-color .15s, background .15s; }
+    .pipeline-step-pill.step-failed { border-color:#ef4444; background:color-mix(in srgb, #ef4444 8%, var(--surface)); }
+    .step-error-banner { border:1px solid color-mix(in srgb, #ef4444 45%, var(--border)); background:color-mix(in srgb, #ef4444 7%, var(--surface)); border-radius:10px; padding:12px 14px; margin:10px 0 12px; display:flex; flex-direction:column; gap:8px; }
+    .step-error-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .step-error-title { font-weight:700; font-size:13px; color:#b91c1c; }
+    .step-error-detail { margin:0; font-size:12px; color:var(--ink-sec); white-space:pre-wrap; word-break:break-word; max-height:130px; overflow-y:auto; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 10px; }
+    .step-info-banner { border:1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); background:color-mix(in srgb, var(--accent) 6%, var(--surface)); border-radius:10px; padding:10px 14px; margin:10px 0 12px; font-size:12.5px; color:var(--ink-sec); }
+    .pipeline-step-pill.active-agent { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--surface)); box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent); }
+    .pipeline-step-pill.idle-agent { opacity:.55; }
+    .pipeline-step-pill .ps-top { display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:11px; color:var(--ink-muted); font-weight:700; }
+    .pipeline-step-pill .ps-name { font-size:12.5px; font-weight:600; color:var(--ink); }
+    .pipeline-step-pill .ps-sub { font-size:11px; color:var(--ink-muted); line-height:1.35; }
+    @media(max-width:1080px) { .tasks-pipeline-split { grid-template-columns:1fr; } .tasks-master-col { position:static; } .tasks-master-col .task-inbox-list { max-height:none; } }
+    @media(max-width:700px) { .pipeline-strip-4 { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
     .task-row-copy { min-width:0; display:grid; gap:5px; }
     .task-row-copy strong { overflow-wrap:anywhere; font-size:14px; }
     .task-row-copy small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -2232,12 +2252,11 @@
                   </div>
                 </div>
                 <div class="subtabs" role="tablist" id="pd-subtabs">
-                  <button class="subtab-btn active" data-subtab="overview" data-i18n="subtab_overview">01. Overview</button>
-                  <button class="subtab-btn" data-subtab="tasks" data-i18n="subtab_tasks">02. Tasks</button>
-                  <button class="subtab-btn" data-subtab="verifications" data-i18n="subtab_verifications">03. Verifications</button>
+                  <button class="subtab-btn active" data-subtab="overview" data-i18n="subtab_overview">01. Overview (B1–B2)</button>
+                  <button class="subtab-btn" data-subtab="tasks" data-i18n="subtab_tasks">02. Tasks &amp; Pipeline (B3)</button>
+                  <button class="subtab-btn" data-subtab="verification" data-i18n="subtab_verification">03. Verification &amp; PR Gate (B4)</button>
                   <button class="subtab-btn" data-subtab="hardening" data-i18n="subtab_hardening">04. Feedback &amp; Hardening</button>
-                  <button class="subtab-btn" data-subtab="activity" data-i18n="subtab_activity">05. Activity</button>
-                  <button class="subtab-btn" data-subtab="config" data-i18n="subtab_config">06. Settings</button>
+                  <button class="subtab-btn" data-subtab="config" data-i18n="subtab_config">05. Settings</button>
                 </div>
               </div>
 
@@ -2287,6 +2306,14 @@
             <option value="ios">ios</option>
             <option value="web">web</option>
             <option value="python">python</option>
+          </select>
+        </div>
+        <div class="field field-full">
+          <label for="mp-backend" data-i18n="lbl_crashlytics_backend">Cách lấy Crashlytics (Backend)</label>
+          <select class="select" id="mp-backend">
+            <option value="firebase_cli">Firebase CLI (MCP) — Khuyên dùng</option>
+            <option value="browser">Browser (Playwright)</option>
+            <option value="api">Crashlytics REST API (gcloud ADC)</option>
           </select>
         </div>
         <div class="field field-full" id="mp-url-single-wrap" style="display:none;">
@@ -2469,12 +2496,13 @@
         filter_enabled: "Đang bật",
         filter_disabled: "Đang tắt",
         open_console: "Mở Console ↗",
-        subtab_overview: "01. Overview",
-        subtab_tasks: "02. Tasks",
-        subtab_verifications: "03. Verifications",
+        subtab_overview: "01. Overview (B1–B2)",
+        subtab_tasks: "02. Tasks & Pipeline (B3)",
+        subtab_verification: "03. Verification & PR Gate (B4)",
+        subtab_pipeline: "02. Tasks & Pipeline (B3)",
+        subtab_verifications: "03. Verification & PR Gate (B4)",
         subtab_hardening: "04. Feedback & Hardening",
-        subtab_activity: "05. Activity",
-        subtab_config: "06. Settings",
+        subtab_config: "05. Settings",
         subtab_prs: "PRs",
         subtab_cycles: "Lượt chạy",
         project_progress: "Tiến độ dự án (7 ngày)",
@@ -2493,6 +2521,7 @@
         lbl_mode: "Chế độ chạy",
         lbl_display_name: "Tên hiển thị *",
         lbl_platform: "Nền tảng",
+        lbl_crashlytics_backend: "Cách lấy Crashlytics (Backend)",
         lbl_console_url: "Crashlytics Console URL",
         lbl_console_url_ios: "Crashlytics Console URL (iOS)",
         lbl_console_url_android: "Crashlytics Console URL (Android)",
@@ -2624,12 +2653,13 @@
         filter_enabled: "Enabled",
         filter_disabled: "Disabled",
         open_console: "Open Console ↗",
-        subtab_overview: "01. Overview",
-        subtab_tasks: "02. Tasks",
-        subtab_verifications: "03. Verifications",
+        subtab_overview: "01. Overview (B1–B2)",
+        subtab_tasks: "02. Tasks & Pipeline (B3)",
+        subtab_verification: "03. Verification & PR Gate (B4)",
+        subtab_pipeline: "02. Tasks & Pipeline (B3)",
+        subtab_verifications: "03. Verification & PR Gate (B4)",
         subtab_hardening: "04. Feedback & Hardening",
-        subtab_activity: "05. Activity",
-        subtab_config: "06. Settings",
+        subtab_config: "05. Settings",
         subtab_prs: "PRs",
         subtab_cycles: "Executions",
         project_progress: "Project Progress (7 Days)",
@@ -2648,6 +2678,7 @@
         lbl_mode: "Execution Mode",
         lbl_display_name: "Display Name *",
         lbl_platform: "Platform",
+        lbl_crashlytics_backend: "Crashlytics Backend",
         lbl_console_url: "Crashlytics Console URL",
         lbl_console_url_ios: "Crashlytics Console URL (iOS)",
         lbl_console_url_android: "Crashlytics Console URL (Android)",
@@ -3596,40 +3627,184 @@
       if (state.view === "projects") renderProjectsView();
     }
 
+    function taskPlatforms(task) {
+      if (Array.isArray(task.platforms) && task.platforms.length) {
+        return task.platforms.map((p) => String(p).toLowerCase());
+      }
+      const single = String(task.platform || "").toLowerCase();
+      if (single && single !== "general" && single !== "multi") return [single];
+      return ["general"];
+    }
+
+    function platformDisplayLabel(pl) {
+      const vi = state.lang === "vi";
+      return {
+        android: "Android",
+        ios: "iOS",
+        web: "Web",
+        flutter: "Flutter",
+        general: vi ? "Chung / Code" : "General",
+        unknown: vi ? "Khác" : "Other",
+      }[pl] || pl;
+    }
+
+    const WORKFLOW_STATUS_LIST = [
+      "TODO", "IN_PROGRESS", "IN_REVIEW", "DONE",
+      "BLOCKED", "ON_HOLD", "REOPENED", "CANCELLED",
+    ];
+
+    function taskWorkflowStatus(task) {
+      const wf = String(task?.workflow_status || "").toUpperCase();
+      if (WORKFLOW_STATUS_LIST.includes(wf)) return wf;
+      const st = String(task?.status || "").toLowerCase();
+      if (st === "running") return "IN_PROGRESS";
+      if (st === "preview") return "IN_REVIEW";
+      if (st === "completed") return "DONE";
+      if (st === "failed") return "BLOCKED";
+      if (st === "skipped") return "CANCELLED";
+      if (st === "on_hold") return "ON_HOLD";
+      if (st === "reopened") return "REOPENED";
+      return "TODO";
+    }
+
+    function workflowStatusBadge(wf) {
+      const code = String(wf || "TODO").toUpperCase();
+      const cls = ({
+        TODO: "badge",
+        IN_PROGRESS: "badge badge-info",
+        IN_REVIEW: "badge badge-info",
+        DONE: "badge badge-ok",
+        BLOCKED: "badge badge-danger",
+        ON_HOLD: "badge badge-warn",
+        REOPENED: "badge badge-warn",
+        CANCELLED: "badge",
+      })[code] || "badge";
+      return `<span class="${cls}">${esc(code)}</span>`;
+    }
+
+    function normalizeFilterCode(f) {
+      const legacy = { failed: "BLOCKED", running: "IN_PROGRESS", pending: "TODO", preview: "IN_REVIEW", completed: "DONE", skipped: "CANCELLED" };
+      if (!f || f === "all") return "all";
+      return legacy[f] || String(f).toUpperCase();
+    }
+
+    function taskStep3Status(task) {
+      const wf = taskWorkflowStatus(task);
+      if (["CANCELLED", "ON_HOLD", "REOPENED"].includes(wf)) return wf;
+      const steps = task?.latest_run?.steps || [];
+      const findS = (n) => steps.findLast((s) => Number(s.step_number ?? s.step) === n);
+      const s1 = findS(1), s2 = findS(2), s3 = findS(3);
+      if (s3) {
+        if (s3.status === "passed") return "DONE";
+        if (s3.status === "running") return "IN_PROGRESS";
+        if (s3.status === "failed" || s3.status === "blocked") return "BLOCKED";
+      }
+      if ((s1 && (s1.status === "failed" || s1.status === "blocked") && wf !== "TODO") ||
+          (s2 && (s2.status === "failed" || s2.status === "blocked"))) {
+        return "BLOCKED";
+      }
+      if ((s1 && s1.status === "running") || (s2 && s2.status === "running")) {
+        return "IN_PROGRESS";
+      }
+      return wf === "IN_PROGRESS" ? "IN_PROGRESS" : "TODO";
+    }
+
+    function taskStep4Status(task) {
+      const wf = taskWorkflowStatus(task);
+      if (["CANCELLED", "ON_HOLD", "REOPENED"].includes(wf)) return wf;
+      const steps = task?.latest_run?.steps || [];
+      const s4 = steps.findLast((s) => Number(s.step_number ?? s.step) === 4);
+      if (s4) {
+        if (s4.status === "failed" || s4.status === "blocked") return "BLOCKED";
+        if (s4.status === "running") return "IN_PROGRESS";
+        if (s4.status === "passed") {
+          const raw = String(task?.raw_status || task?.latest_run?.overall_status || "").toUpperCase();
+          if (raw === "AUTO_MERGED" || raw === "VERIFIED_NO_CHANGES" || raw === "PR_CLOSED") return "DONE";
+          return "IN_REVIEW";
+        }
+      }
+      return "TODO";
+    }
+
+    function filterTasksByView(tasks, view) {
+      const order = { BLOCKED: 0, IN_PROGRESS: 1, REOPENED: 2, TODO: 3, ON_HOLD: 4, DONE: 5, IN_REVIEW: 6, CANCELLED: 7 };
+      const statusFilter = normalizeFilterCode(view.filter);
+      const platFilter = view.platformFilter || "all";
+      return tasks
+        .filter((task) => statusFilter === "all" || taskStep3Status(task) === statusFilter)
+        .filter((task) => platFilter === "all" || taskPlatforms(task).includes(platFilter))
+        .sort((a, b) => (order[taskStep3Status(a)] ?? 9) - (order[taskStep3Status(b)] ?? 9) ||
+          String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+    }
+
     function taskInbox(tasks, view) {
       const vi = state.lang === "vi";
+      const activeStatusFilter = normalizeFilterCode(view.filter);
       const filters = [
-        ["all", vi ? "Tất cả" : "All"], ["failed", vi ? "Cần chú ý" : "Needs attention"],
-        ["running", t("status_running")], ["pending", vi ? "Sẵn sàng / Chờ" : "Ready / Pending"],
-        ["completed", t("status_completed")], ["preview", vi ? "Chạy thử đạt" : "Verified preview"]
+        ["all", vi ? "Tất cả" : "All"],
+        ...WORKFLOW_STATUS_LIST.map((code) => [code, code]),
       ];
-      const priority = {failed: 0, running: 1, pending: 2, preview: 3, completed: 4};
-      const rows = tasks.filter(task => view.filter === "all" || view.filter === task.status)
-        .sort((a, b) => (priority[a.status] ?? 5) - (priority[b.status] ?? 5) ||
-          String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
-      return `<section class="card task-inbox"><h3 class="card-title">${vi ? "Danh sách công việc (Tasks)" : "Task list"} (${tasks.length})</h3>
-        <div class="task-filters">${filters.map(([key, label]) => {
-          const count = key === "all" ? tasks.length : tasks.filter(task => task.status === key).length;
-          if (!count && key !== "all" && key !== view.filter) return "";
-          return `<button class="btn btn-sm" data-task-filter="${key}" aria-pressed="${view.filter === key}">${esc(label)} <span>${count}</span></button>`;
-        }).join("")}</div>
+      const platformOrder = ["android", "ios", "web", "flutter", "general", "unknown"];
+      const platformCounts = new Map();
+      for (const task of tasks) {
+        for (const pl of taskPlatforms(task)) {
+          platformCounts.set(pl, (platformCounts.get(pl) || 0) + 1);
+        }
+      }
+      const availablePlatforms = [...platformCounts.keys()].sort((a, b) => {
+        const ia = platformOrder.indexOf(a);
+        const ib = platformOrder.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+      });
+      const activePlat = (view.platformFilter && view.platformFilter !== "all" && platformCounts.has(view.platformFilter))
+        ? view.platformFilter : "all";
+      const effectiveView = { ...view, filter: activeStatusFilter, platformFilter: activePlat };
+      const rows = filterTasksByView(tasks, effectiveView);
+      const runnableIds = rows.map((task) => task.cluster_id || task.id).filter(Boolean);
+      const runBtnLabel = vi
+        ? `▶ Chạy danh sách đang lọc (${runnableIds.length})`
+        : `▶ Run filtered tasks (${runnableIds.length})`;
+      const statusBase = activePlat === "all" ? tasks : tasks.filter((task) => taskPlatforms(task).includes(activePlat));
+      const statusLabel = vi ? "Trạng thái" : "Status";
+      const platformLabel = t("lbl_platform");
+      return `<section class="card task-inbox">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <h3 class="card-title">${vi ? "Danh sách công việc (Tasks)" : "Task list"} (${rows.length}${rows.length !== tasks.length ? ` / ${tasks.length}` : ""})</h3>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <select class="select" id="task-status-filter" aria-label="${esc(statusLabel)}" style="width:auto;min-width:170px;padding:6px 10px;font-size:13px;">
+              ${filters.map(([key, label]) => {
+                const count = key === "all" ? statusBase.length : statusBase.filter(task => taskStep3Status(task) === key).length;
+                return `<option value="${esc(key)}" ${activeStatusFilter === key ? "selected" : ""}>${esc(statusLabel)}: ${esc(label)} (${count})</option>`;
+              }).join("")}
+            </select>
+            <select class="select" id="task-platform-filter" aria-label="${esc(platformLabel)}" style="width:auto;min-width:175px;padding:6px 10px;font-size:13px;">
+              <option value="all" ${activePlat === "all" ? "selected" : ""}>${esc(platformLabel)}: ${esc(vi ? "Tất cả" : "All")} (${tasks.length})</option>
+              ${availablePlatforms.map((pl) => `
+                <option value="${esc(pl)}" ${activePlat === pl ? "selected" : ""}>${esc(platformLabel)}: ${esc(platformDisplayLabel(pl))} (${platformCounts.get(pl)})</option>
+              `).join("")}
+            </select>
+            <button type="button" class="btn btn-sm btn-primary" id="run-filtered-tasks-btn" ${runnableIds.length ? "" : "disabled"}>${esc(runBtnLabel)}</button>
+          </div>
+        </div>
         ${rows.length ? `<ul class="task-inbox-list">${rows.map(task => {
           const last = task.latest_run?.steps?.at(-1);
           const tid = task.task_id || task.id;
-          const meta = [tid, task.source, task.blame_file, last?.summary || (task.latest_run ? task.latest_run.overall_status : (vi ? "Sẵn sàng thực thi" : "Ready"))];
-          return `<li><button class="task-inbox-row" data-pick-task="${esc(task.id)}">
+          const plats = taskPlatforms(task).filter((pl) => pl !== "general");
+          const isActive = view.taskId === task.id;
+          const meta = [tid, task.source, task.blame_file || (last?.summary ? last.summary.slice(0, 60) : "")];
+          return `<li><button class="task-inbox-row ${isActive ? "active" : ""}" data-pick-task="${esc(task.id)}" aria-current="${isActive ? "true" : "false"}">
             <span class="task-row-copy">
               <strong>${esc(task.title)}</strong>
               <small>${esc(meta.filter(Boolean).join(" · "))}</small>
             </span>
-            <span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+            <span style="display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+              ${plats.map((pl) => `<span class="badge">${esc(platformDisplayLabel(pl))}</span>`).join("")}
               ${priorityBadge(task.priority)}
-              ${specialistBadge(task.specialist, task.specialist_label)}
-              ${statusBadge(task.status, task.raw_status)}
+              ${workflowStatusBadge(taskStep3Status(task))}
             </span>
-            <time>${esc(fmtTime(task.updated_at))}</time><span aria-hidden="true">›</span>
+            <span aria-hidden="true">›</span>
           </button></li>`;
-        }).join("")}</ul>` : `<p class="empty-state">${esc(tasks.length ? (vi ? "Không có tác vụ ở trạng thái này." : "No tasks with this status.") : t("no_tasks"))}</p>`}
+        }).join("")}</ul>` : `<p class="empty-state">${esc(tasks.length ? (vi ? "Không có tác vụ khớp bộ lọc hiện tại." : "No tasks match the current filter.") : t("no_tasks"))}</p>`}
       </section>`;
     }
 
@@ -3780,6 +3955,143 @@
           · ${esc(step.status)}<p>${esc(step.summary || step.detail || "")}</p>${renderTaskAttempts(step, vi)}
           ${renderRunChecks(step.details?.verify_checks || [])}</li>`).join("") ||
           `<li>${vi ? "Chưa có nhật ký bước." : "No steps recorded."}</li>`}</ol></div></section>`;
+    }
+
+    function pipelineFourStepPanel(pd, view) {
+      const vi = state.lang === "vi";
+      const runs = pd.cycles || [];
+      const selectedRun = runs.find((entry) => entry.run_id === view.runId);
+      if (selectedRun) {
+        const task = pd.recent_tasks?.find((item) => item.id === selectedRun.cluster_id);
+        return renderRunDetailCard(pd, selectedRun, task);
+      }
+
+      const latestRun = runs[0] || null;
+      const latestSteps = latestRun?.steps || [];
+      const stepDefs = [
+        {
+          num: 1,
+          code: "3.1",
+          title: vi ? "Cô lập & Phạm vi" : "Scope & Worktree",
+          desc: vi ? "Tạo worktree tách biệt, kiểm tra nhánh gốc & giới hạn phạm vi." : "Create isolated worktree, verify base branch & scope guards.",
+        },
+        {
+          num: 2,
+          code: "3.2",
+          title: vi ? "Ngữ cảnh & Brief" : "Context & Brief",
+          desc: vi ? "Ánh xạ stack trace sang mã nguồn & tổng hợp Execution Brief." : "Map stack trace to source files & synthesize execution brief.",
+        },
+        {
+          num: 3,
+          code: "3.3",
+          title: vi ? "AI Thực thi & Checks" : "Agent Execution & Checks",
+          desc: vi ? "Coding Agent sửa mã trong sandbox & chạy kiểm tra cơ học." : "Coding agent applies fix in sandbox & runs mechanical checks.",
+        },
+        {
+          num: 4,
+          code: "3.4",
+          title: vi ? "Kiểm định & PR Gate" : "Verification & PR Gate",
+          desc: vi ? "Kiểm định độc lập (4A Diff/Tests · 4B Runtime · 4C AI) & tạo PR." : "Independent verification (4A/4B/4C) & PR delivery gate.",
+        },
+      ];
+
+      const stepBadge = (st) => {
+        const s = String(st || "").toLowerCase();
+        if (s === "passed" || s === "pass") return `<span class="badge badge-ok">PASS</span>`;
+        if (s === "failed" || s === "fail") return `<span class="badge badge-danger">FAIL</span>`;
+        if (s === "running") return `<span class="badge badge-info">RUN</span>`;
+        if (s === "skipped" || s === "skip") return `<span class="badge">SKIP</span>`;
+        return `<span class="badge" style="opacity:.55;">—</span>`;
+      };
+
+      const findStep = (run, num) =>
+        (run?.steps || []).findLast((s) => Number(s.step_number ?? s.step) === num) || null;
+
+      return `
+        <section class="card">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div>
+              <h3 class="card-title">${esc(vi ? "Quy trình 4 bước khép kín (Giai đoạn 3 — Inner Loop)" : "4-Step Constrained Pipeline (Stage 3 — Inner Loop)")}</h3>
+              <p class="card-sub">${esc(vi ? "Mỗi tác vụ đi tuần tự qua 4 bước cô lập: Chuẩn bị Worktree → Tổng hợp Brief → AI Thực thi → Kiểm định & PR." : "Each task runs sequentially through 4 isolated steps: Worktree → Brief → Execution → Verification & PR.")}</p>
+            </div>
+            ${latestRun ? `<span class="mono" style="font-size:12px;color:var(--ink-muted);">${esc(vi ? "Lượt gần nhất:" : "Latest run:")} ${esc(latestRun.run_id)}</span>` : ""}
+          </div>
+          <div class="grid-4">
+            ${stepDefs.map((def) => {
+              const st = findStep(latestRun, def.num);
+              const statusVal = st?.status || (latestRun ? "pending" : "");
+              return `
+                <div class="kpi-card" style="gap:6px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <span class="mono" style="font-size:12px;font-weight:700;color:var(--ink-muted);">${esc(def.code)}</span>
+                    ${stepBadge(statusVal)}
+                  </div>
+                  <div style="font-weight:700;font-size:14px;">${esc(def.title)}</div>
+                  <div style="font-size:12px;color:var(--ink-muted);line-height:1.45;">${esc(st?.summary || def.desc)}</div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">${esc(vi ? "Lịch sử chạy Pipeline" : "Pipeline Runs")} (${runs.length})</h3>
+              <p class="card-sub">${esc(vi ? "Theo dõi tiến độ từng bước 3.1 → 3.4 của mỗi lượt chạy và mở chi tiết Diff / Brief / Verdict." : "Track step-by-step 3.1 → 3.4 progress for each run and inspect Diff / Brief / Verdict.")}</p>
+            </div>
+          </div>
+          ${runs.length ? `
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>${esc(vi ? "Tác vụ / Run" : "Task / Run")}</th>
+                    <th>3.1</th>
+                    <th>3.2</th>
+                    <th>3.3</th>
+                    <th>3.4</th>
+                    <th>${esc(vi ? "Kết quả" : "Outcome")}</th>
+                    <th>${esc(t("col_updated"))}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${runs.map((run) => {
+                    const s1 = findStep(run, 1);
+                    const s2 = findStep(run, 2);
+                    const s3 = findStep(run, 3);
+                    const s4 = findStep(run, 4);
+                    const prUrl = webUrl(run.pr_url || "");
+                    const title = run.cluster_title || run.cluster_id || run.run_id;
+                    const taskTag = run.task_id ? `${run.task_id} · ` : "";
+                    return `
+                      <tr>
+                        <td>
+                          <div style="font-weight:600;">${esc(taskTag + title)}</div>
+                          <div class="mono" style="font-size:11px;color:var(--ink-muted);">${esc(run.run_id)}${run.dry_run ? " · DRY-RUN" : ""}</div>
+                        </td>
+                        <td>${stepBadge(s1?.status)}</td>
+                        <td>${stepBadge(s2?.status)}</td>
+                        <td>${stepBadge(s3?.status)}</td>
+                        <td>${stepBadge(s4?.status)}</td>
+                        <td>
+                          <div style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            ${statusBadge(run.status_group || "pending", run.overall_status)}
+                            ${prUrl ? `<a class="btn btn-sm" href="${esc(prUrl)}" target="_blank" rel="noopener">PR ↗</a>` : ""}
+                          </div>
+                        </td>
+                        <td>${esc(fmtTime(run.created_at))}</td>
+                        <td style="text-align:right;">${runLink({ run_id: run.run_id }, vi ? "Chi tiết" : "Inspect")}</td>
+                      </tr>
+                    `;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>
+          ` : `<div class="empty-state">${esc(t("no_cycles"))}</div>`}
+        </section>
+      `;
     }
 
     function verificationsPanel(pd, view) {
@@ -4133,6 +4445,15 @@
       const stage = view.stage || 1;
       const taskTab = view.taskTab || "overview";
 
+      const activeSpecialist = String(task.specialist || run?.track || "bug_fix").toLowerCase();
+      const cliRunner = execution?.details?.selected_agent || "";
+      const agentLanes = [
+        { key: "bug_fix", name: "bug-fix-agent", role: tr("Sửa lỗi & Crash", "Crash & Bug Fix") },
+        { key: "performance", name: "performance-agent", role: tr("Hiệu năng & ANR", "Performance & ANR") },
+        { key: "code_gardening", name: "gardening-agent", role: tr("Dọn dẹp & Refactor", "Code Gardening") },
+        { key: "experimental", name: "experimental-agent", role: tr("Thử nghiệm & Tính năng", "Experimental") },
+      ];
+
       const substeps = inner.map((item, index) => `
         <li><strong>3.${index + 1} · ${esc(innerNames[index])}</strong> ${badge(item?.status)}
           ${item?.summary && item.status !== "running" ? `<p>${esc(item.summary)}</p>` : ""}
@@ -4142,31 +4463,96 @@
           ${index === 2 && run?.run_id ? runLink(run, tr("Xem nhật ký","View log")) : ""}
         </li>`).join("");
 
+      const activeAgentName = ({
+        bug_fix: "bug-fix-agent",
+        performance: "performance-agent",
+        code_gardening: "gardening-agent",
+        experimental: "experimental-agent",
+      })[activeSpecialist] || activeSpecialist;
+
+      const failureInfo = task.failure_info || null;
+      const missingRepoBanner = !pd.project?.repo_exists
+        ? `<div class="step-info-banner">ℹ️ ${esc(tr(
+            "Chưa gắn đường dẫn Source Code Local — Task đang ở trạng thái TODO (chưa chạy). Vào tab 04. Settings để gắn Repository trước khi chạy.",
+            "Local repository path is not configured — Task is in TODO (not run yet). Configure repository path in 04. Settings."
+          ))}</div>`
+        : "";
+      const isStage4Failure = Boolean(failureInfo && Number(failureInfo.step_number) === 4);
+      const makeFailureBanner = (info) => `<div class="step-error-banner" role="alert">
+            <div class="step-error-head">
+              <span class="step-error-title">⛔ ${esc(tr(`Dừng tại ${info.step_code} · ${info.step_name}`, `Stopped at Step ${info.step_number} · ${info.step_name}`))}</span>
+              <button type="button" class="btn btn-sm btn-primary" id="retry-from-step-btn" data-retry-task="${esc(task.task_id || task.id)}" data-retry-step="${esc(info.step_number)}" data-retry-run="${esc(info.run_id || "")}">
+                ↻ ${esc(info.can_resume
+                  ? tr(`Retry tiếp từ ${info.step_code}`, `Resume from Step ${info.step_number}`)
+                  : tr(`Retry ${info.step_code}`, `Retry Step ${info.step_number}`))}
+              </button>
+            </div>
+            ${info.summary ? `<div style="font-size:12.5px;color:var(--ink);">${esc(info.summary)}</div>` : ""}
+            ${info.detail ? `<pre class="step-error-detail mono">${esc(info.detail)}</pre>` : ""}
+          </div>`;
+      const stage3FailureBannerHtml = failureInfo && !isStage4Failure ? makeFailureBanner(failureInfo) : "";
+      const stage4FailureBannerHtml = failureInfo && isStage4Failure ? makeFailureBanner(failureInfo) : "";
+      const stage4NoticeInOverview = isStage4Failure
+        ? `<div class="step-info-banner" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span>✓ ${esc(tr("Bước 3 (Agent thực thi) đã hoàn thành. Lỗi nằm ở Bước 4 — mở tab 03. Verification & PR Gate để xem và chạy lại.", "Step 3 (Agent execution) completed. Failure is in Step 4 — open tab 03. Verification & PR Gate to inspect & retry."))}</span>
+            <button type="button" class="btn btn-sm btn-primary" data-goto-subtab="verification" data-goto-task="${esc(task.id)}">${esc(tr("Mở tab 03. Verification & PR Gate (B4) →", "Open 03. Verification & PR Gate (B4) →"))}</button>
+          </div>`
+        : "";
+
+      const stage3PipelineHtml = `
+        ${missingRepoBanner}
+        ${stage3FailureBannerHtml}
+        ${stage4NoticeInOverview}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:700;color:var(--ink-muted);">${esc(tr("Pipeline quy trình 4 bước khép kín (3.1 → 3.4)", "4-Step Closed-Loop Pipeline (3.1 → 3.4)"))}</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span class="badge badge-info mono">${esc(activeAgentName)}</span>
+            ${cliRunner ? `<span class="mono" style="font-size:11.5px;color:var(--ink-muted);">${esc(cliRunner)}</span>` : ""}
+          </span>
+        </div>
+        <div class="pipeline-strip-4" style="margin-top:0;" aria-label="${esc(tr("Pipeline 4 bước khép kín","4-Step Closed-Loop Pipeline"))}">
+          ${inner.map((item, idx) => {
+            const stepNo = idx + 1;
+            const isFailedStep = failureStatuses.includes(item?.status);
+            return `
+            <div class="pipeline-step-pill ${isFailedStep ? "step-failed" : ""}">
+              <div class="ps-top"><span class="mono">3.${stepNo}</span>${badge(item?.status)}</div>
+              <div class="ps-name">${esc(innerNames[idx])}</div>
+              ${detailLines[idx] ? `<div class="ps-sub mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(detailLines[idx])}">${esc(detailLines[idx])}</div>` : ""}
+              ${isFailedStep ? `<button type="button" class="btn btn-sm" style="margin-top:4px;font-size:11px;padding:3px 8px;" data-retry-task="${esc(task.task_id || task.id)}" data-retry-step="${stepNo === 4 ? 3 : stepNo}" data-retry-run="${esc(run?.run_id || "")}">↻ ${esc(tr("Retry bước này", "Retry step"))}</button>` : ""}
+            </div>
+          `;
+          }).join("")}
+        </div>
+      `;
+
       const stageContent = [
           `<p>${esc(task.source)} · ${esc(task.events_count ?? 0)} ${tr("sự kiện","events")}</p>`,
           `<p class="mono">${esc(task.blame_file || "")}</p><pre class="code-block">${esc(task.body || step(2)?.summary || tr("Chưa có nội dung ngữ cảnh.","No context recorded."))}</pre>`,
-          `<p>${esc(execution?.details?.selected_agent || run?.track || "")} ${run?.dry_run ? "· Dry-run" : ""}</p>
-           <button type="button" class="btn btn-sm" id="toggle-task-steps" aria-expanded="${view.expanded}" aria-controls="task-substeps">${view.expanded ? tr("Thu gọn","Collapse") : tr("Xem 4 bước thực thi","Show 4 execution steps")}</button>
-           <ol id="task-substeps" ${view.expanded ? "" : "hidden"}>${substeps}</ol>`,
+          `${stage3PipelineHtml}
+           <div style="margin-top:8px;"><button type="button" class="btn btn-sm" data-task-tab="execution">${esc(tr("Xem chi tiết Execution (Brief & Attempts) →", "Inspect Execution (Brief & Attempts) →"))}</button></div>`,
           `<strong>${esc(delivery)}</strong><p>${esc(verification?.summary || "")}</p>
            ${url ? `<a class="btn btn-sm" href="${esc(url)}" target="_blank" rel="noopener">${tr("Mở PR","Open PR")} ↗</a>` : ""}`
         ][stage - 1];
 
       const taskTabsDef = [
-        ["overview", tr("Overview", "Overview")],
-        ["execution", tr("Execution (GĐ 3)", "Execution")],
+        ["overview", tr("Pipeline (3.1–3.4)", "Pipeline (3.1–3.4)")],
+        ["execution", tr("Execution & Brief", "Execution & Brief")],
         ["logs", tr("Logs", "Logs")],
         ["diff", tr("Diff & Changes", "Diff & Changes")],
-        ["verification", tr("Verification (GĐ 4)", "Verification")],
-        ["delivery", tr("Delivery", "Delivery")],
       ];
 
       let tabBodyHtml = "";
-      if (taskTab === "overview") {
+      if (taskTab === "overview" || taskTab === "verification" || taskTab === "delivery") {
         tabBodyHtml = `
-          <div class="task-stages">${labels.map((label, i) => `<button type="button" class="btn" data-task-stage="${i+1}" aria-pressed="${!!task && stage === i+1}" ${task ? "" : "disabled"}>
-            ${esc(label)} ${task ? badge(stageStatuses[i]) : ""}</button>`).join("")}</div>
-          <div class="task-content">${stageContent}</div>
+          <div class="task-content">
+            ${stage3PipelineHtml}
+            <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button type="button" class="btn btn-sm" data-task-tab="execution">${esc(tr("Xem Execution & Brief →", "View Execution & Brief →"))}</button>
+              <button type="button" class="btn btn-sm" data-goto-subtab="verification" data-goto-task="${esc(task.id)}">${esc(tr("Sang Bước 4 (Verification & PR Gate) →", "Go to Step 4 (Verification & PR Gate) →"))}</button>
+              ${url ? `<a class="btn btn-sm" href="${esc(url)}" target="_blank" rel="noopener">${tr("Mở PR","Open PR")} ↗</a>` : ""}
+            </div>
+          </div>
         `;
       } else if (taskTab === "execution") {
         if (run?.run_id && !state.runDiffCache.has(run.run_id)) {
@@ -4215,10 +4601,12 @@
             : diffData?.patch_text ? renderDiffHtml(diffData.patch_text)
             : `<p class="card-sub">${tr("Không có thay đổi file trong lượt chạy này.", "No diff recorded for this run.")}</p>`}
         `;
-      } else if (taskTab === "verification") {
+      } else if (taskTab === "verification" || taskTab === "delivery") {
         const atts = vm.attempts || [];
         const va = verification?.details?.verifier_agent || vm.verifier_agent || {};
+        const deliv = vm.delivery || {};
         tabBodyHtml = `
+          ${stage4FailureBannerHtml}
           <div class="grid-4" style="margin-bottom:12px;">
             <div class="disc-cell"><div class="disc-lbl">4A · Diff &amp; Tests</div><div style="margin-top:6px;">${matrixBadge(vm.stage_4a || (verification ? "PASS" : "WAIT"))}</div></div>
             <div class="disc-cell"><div class="disc-lbl">4B · Runtime</div><div style="margin-top:6px;">${matrixBadge(vm.stage_4b || "SKIP")}</div></div>
@@ -4238,24 +4626,31 @@
           </table></div>` : ""}
           ${va.verdict_text ? `<pre class="code-block">${esc(va.verdict_text)}</pre>` : ""}
           ${renderRunChecks(verification?.details?.verify_checks || [])}
-        `;
-      } else if (taskTab === "delivery") {
-        const deliv = vm.delivery || {};
-        tabBodyHtml = `
-          <div class="kv-list" style="margin-bottom:12px;">
-            <div class="kv-row"><span class="kv-label">Status</span><span class="kv-val">${esc(delivery)}</span></div>
-            <div class="kv-row"><span class="kv-label">Branch → Base</span><span class="kv-val mono">${esc(deliv.branch_name || run?.branch_name || "—")} → ${esc(deliv.base_branch || pd.project.base_branch || "main")}</span></div>
-            <div class="kv-row"><span class="kv-label">Commit SHA</span><span class="kv-val mono">${esc(deliv.commit_sha || "—")}</span></div>
-            <div class="kv-row"><span class="kv-label">Verified Attempt / Patch</span><span class="kv-val mono">${deliv.verified_attempt ? `#${deliv.verified_attempt} (${deliv.verified_patch_sha256 || "verified.patch"})` : "—"}</span></div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+            <div style="font-size:12px;font-weight:700;color:var(--ink-muted);margin-bottom:8px;">PR Gate &amp; Delivery</div>
+            <div class="kv-list" style="margin-bottom:12px;">
+              <div class="kv-row"><span class="kv-label">Status</span><span class="kv-val">${esc(delivery)}</span></div>
+              <div class="kv-row"><span class="kv-label">Branch → Base</span><span class="kv-val mono">${esc(deliv.branch_name || run?.branch_name || "—")} → ${esc(deliv.base_branch || pd.project.base_branch || "main")}</span></div>
+              <div class="kv-row"><span class="kv-label">Commit SHA</span><span class="kv-val mono">${esc(deliv.commit_sha || "—")}</span></div>
+              <div class="kv-row"><span class="kv-label">Verified Attempt / Patch</span><span class="kv-val mono">${deliv.verified_attempt ? `#${deliv.verified_attempt} (${deliv.verified_patch_sha256 || "verified.patch"})` : "—"}</span></div>
+            </div>
+            ${url ? `<a class="btn btn-sm btn-primary" href="${esc(url)}" target="_blank" rel="noopener">${tr("Mở Pull Request","Open Pull Request")} ↗</a>` : ""}
           </div>
-          ${url ? `<a class="btn btn-sm btn-primary" href="${esc(url)}" target="_blank" rel="noopener">${tr("Mở Pull Request","Open Pull Request")} ↗</a>` : ""}
         `;
       }
 
+      const wfStatus = taskStep3Status(task);
       const history = (pd.cycles || []).filter(entry => entry.cluster_id === task.id);
       return `<section class="card task-workflow">
-        <button class="btn btn-sm" id="task-list-back">← ${tr("Danh sách tác vụ","Task list")}</button>
-          <header class="task-heading"><h3 class="card-title" tabindex="-1">${esc(task.title)}</h3>${statusBadge(task.status, task.raw_status)}</header>
+          <header class="task-heading" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <h3 class="card-title" tabindex="-1">${esc(task.title)}</h3>
+            <div style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              ${workflowStatusBadge(wfStatus)}
+              <select class="select" id="task-workflow-status-select" data-task-ref="${esc(task.task_id || task.id)}" aria-label="${esc(tr("Đổi trạng thái Task", "Change task status"))}" style="width:auto;min-width:130px;padding:4px 8px;font-size:12px;">
+                ${WORKFLOW_STATUS_LIST.map((code) => `<option value="${code}" ${wfStatus === code ? "selected" : ""}>${code}</option>`).join("")}
+              </select>
+            </div>
+          </header>
           <p class="card-sub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="mono" style="font-weight:700;">${esc(task.task_id || task.id)}</span>
             <span>· ${esc(pd.project?.name || "")}</span>
@@ -4273,6 +4668,133 @@
           <ul>${history.map(entry => `<li><time>${esc(fmtTime(entry.created_at))}</time><span class="mono" style="font-size:11.5px;">${esc(entry.run_id)}</span>${statusBadge(entry.status_group, entry.overall_status)}
           ${runLink(entry, tr("Xem nhật ký","View log"))}</li>`).join("")}</ul></section>` : ""}
       </section>`;
+    }
+
+    function stage4VerificationTab(pd, view) {
+      const vi = state.lang === "vi";
+      const tr = (vn, en) => vi ? vn : en;
+      const allTasks = pd.recent_tasks || [];
+      const b4Tasks = allTasks.filter((t) => {
+        const steps = t.latest_run?.steps || [];
+        return steps.some((s) => Number(s.step_number ?? s.step) === 4) || t.pr_url;
+      });
+      const b4Filter = view.b4Filter || "all";
+      const classifyB4 = (t) => {
+        const vm = t.latest_run?.verification || {};
+        const res = String(vm.result || "").toUpperCase();
+        if (res === "FAIL" || t.failure_info?.step_number === 4) return "fail";
+        if (res === "PASS" || t.pr_url || taskWorkflowStatus(t) === "IN_REVIEW" || taskWorkflowStatus(t) === "DONE") return "pass";
+        if (res === "RUNNING" || taskWorkflowStatus(t) === "IN_PROGRESS") return "running";
+        return "other";
+      };
+      const filteredB4 = b4Tasks.filter((t) => b4Filter === "all" || classifyB4(t) === b4Filter);
+      if (!view.b4TaskId || !filteredB4.some((t) => t.id === view.b4TaskId)) {
+        view.b4TaskId = filteredB4[0]?.id || b4Tasks[0]?.id || null;
+      }
+      const selected = b4Tasks.find((t) => t.id === view.b4TaskId) || null;
+
+      const leftHtml = `
+        <section class="card task-inbox">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <h3 class="card-title">${esc(tr("Bước 4 · Kiểm định & PR Gate", "Step 4 · Verification & PR Gate"))} (${filteredB4.length}/${b4Tasks.length})</h3>
+            <select class="select" id="b4-status-filter" style="width:auto;min-width:155px;padding:6px 10px;font-size:13px;">
+              <option value="all" ${b4Filter === "all" ? "selected" : ""}>${esc(tr("Tất cả", "All"))} (${b4Tasks.length})</option>
+              <option value="fail" ${b4Filter === "fail" ? "selected" : ""}>FAIL (${b4Tasks.filter(t => classifyB4(t) === "fail").length})</option>
+              <option value="pass" ${b4Filter === "pass" ? "selected" : ""}>PASS / PR (${b4Tasks.filter(t => classifyB4(t) === "pass").length})</option>
+              <option value="running" ${b4Filter === "running" ? "selected" : ""}>RUNNING (${b4Tasks.filter(t => classifyB4(t) === "running").length})</option>
+            </select>
+          </div>
+          ${filteredB4.length ? `<ul class="task-inbox-list">${filteredB4.map((t) => {
+            const vm = t.latest_run?.verification || {};
+            const active = selected && selected.id === t.id;
+            return `<li><button class="task-inbox-row ${active ? "active" : ""}" data-pick-b4-task="${esc(t.id)}">
+              <span class="task-row-copy">
+                <strong>${esc(t.title)}</strong>
+                <small class="mono">${esc(t.task_id || t.id)} · 4A:${esc(vm.stage_4a || "—")} · 4B:${esc(vm.stage_4b || "—")} · 4C:${esc(vm.stage_4c || "—")}</small>
+              </span>
+              <span style="display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap;">
+                ${workflowStatusBadge(taskStep4Status(t))}
+              </span>
+              <span aria-hidden="true">›</span>
+            </button></li>`;
+          }).join("")}</ul>` : `<p class="empty-state">${esc(tr("Chưa có tác vụ nào đi tới Bước 4.", "No tasks have reached Step 4 yet."))}</p>`}
+        </section>
+      `;
+
+      let rightHtml = `<section class="card"><div class="empty-state">${esc(tr("Chọn 1 tác vụ ở cột bên trái để xem kết quả Kiểm định độc lập (4A/4B/4C) & PR Gate.", "Select a task on the left to inspect Independent Verification (4A/4B/4C) & PR Gate."))}</div></section>`;
+      if (selected) {
+        const run = selected.latest_run || (pd.cycles || []).find((r) => r.cluster_id === selected.id);
+        const steps = run?.steps || [];
+        const verification = steps.findLast((s) => Number(s.step_number ?? s.step) === 4) || null;
+        const vm = run?.verification || {};
+        const atts = vm.attempts || [];
+        const va = verification?.details?.verifier_agent || vm.verifier_agent || {};
+        const deliv = vm.delivery || {};
+        const prUrl = webUrl(run?.pr_url || selected.pr_url || "");
+        const info = selected.failure_info && Number(selected.failure_info.step_number) === 4 ? selected.failure_info : null;
+        const deliveryTxt = prUrl ? tr("Đã tạo PR", "PR created") : (run?.overall_status || "—");
+        rightHtml = `
+          <section class="card task-workflow">
+            <header class="task-heading" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+              <h3 class="card-title">${esc(selected.title)}</h3>
+              <div style="display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                ${workflowStatusBadge(taskStep4Status(selected))}
+                <button type="button" class="btn btn-sm" data-goto-subtab="tasks" data-goto-task="${esc(selected.id)}">← ${esc(tr("Xem Bước 3 (Pipeline)", "View Step 3 (Pipeline)"))}</button>
+              </div>
+            </header>
+            <p class="card-sub mono">${esc(selected.task_id || selected.id)} · ${esc(run?.run_id || "")}</p>
+            ${info ? `
+              <div class="step-error-banner" role="alert">
+                <div class="step-error-head">
+                  <span class="step-error-title">⛔ ${esc(tr("Lỗi tại Bước 4 · Independent Verification & PR Gate", "Failed at Step 4 · Independent Verification & PR Gate"))}</span>
+                  <button type="button" class="btn btn-sm btn-primary" data-retry-task="${esc(selected.task_id || selected.id)}" data-retry-step="4" data-retry-run="${esc(info.run_id || "")}">
+                    ↻ ${esc(info.can_resume ? tr("Retry tiếp từ Bước 4", "Resume from Step 4") : tr("Chạy lại Bước 4", "Retry Step 4"))}
+                  </button>
+                </div>
+                ${info.summary ? `<div style="font-size:12.5px;color:var(--ink);">${esc(info.summary)}</div>` : ""}
+                ${info.detail ? `<pre class="step-error-detail mono">${esc(info.detail)}</pre>` : ""}
+              </div>
+            ` : ""}
+            <div class="grid-4" style="margin:12px 0;">
+              <div class="disc-cell"><div class="disc-lbl">4A · Diff &amp; Tests</div><div style="margin-top:6px;">${matrixBadge(vm.stage_4a || (verification?.status === "passed" ? "PASS" : "FAIL"))}</div></div>
+              <div class="disc-cell"><div class="disc-lbl">4B · Runtime</div><div style="margin-top:6px;">${matrixBadge(vm.stage_4b || "SKIP")}</div></div>
+              <div class="disc-cell"><div class="disc-lbl">4C · AI Verifier</div><div style="margin-top:6px;">${matrixBadge(vm.stage_4c || "SKIP")}</div></div>
+              <div class="disc-cell"><div class="disc-lbl">Overall</div><div style="margin-top:6px;">${matrixBadge(vm.result || (verification?.status === "passed" ? "PASS" : "FAIL"))}</div></div>
+            </div>
+            ${atts.length ? `<div class="table-wrap" style="margin-bottom:12px;"><table>
+              <thead><tr><th>Attempt</th><th>Mechanical</th><th>4A</th><th>4B</th><th>4C</th><th>Verdict</th></tr></thead>
+              <tbody>${atts.map(a => `<tr>
+                <td class="mono">#${esc(a.attempt)}</td>
+                <td>${matrixBadge(a.mechanical_passed ? "PASS" : "FAIL")}</td>
+                <td>${matrixBadge(a.stage_4a)}</td>
+                <td>${matrixBadge(a.stage_4b)}</td>
+                <td>${matrixBadge(a.stage_4c)}</td>
+                <td>${matrixBadge(a.verdict)}</td>
+              </tr>`).join("")}</tbody>
+            </table></div>` : ""}
+            ${va.verdict_text ? `<pre class="code-block">${esc(va.verdict_text)}</pre>` : ""}
+            ${renderRunChecks(verification?.details?.verify_checks || [])}
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+              <div style="font-size:12px;font-weight:700;color:var(--ink-muted);margin-bottom:8px;">PR Gate &amp; Delivery</div>
+              <div class="kv-list" style="margin-bottom:12px;">
+                <div class="kv-row"><span class="kv-label">Status</span><span class="kv-val">${esc(deliveryTxt)}</span></div>
+                <div class="kv-row"><span class="kv-label">Branch → Base</span><span class="kv-val mono">${esc(deliv.branch_name || run?.branch_name || "—")} → ${esc(deliv.base_branch || pd.project.base_branch || "main")}</span></div>
+                <div class="kv-row"><span class="kv-label">Commit SHA</span><span class="kv-val mono">${esc(deliv.commit_sha || "—")}</span></div>
+                <div class="kv-row"><span class="kv-label">Verified Attempt / Patch</span><span class="kv-val mono">${deliv.verified_attempt ? `#${deliv.verified_attempt} (${deliv.verified_patch_sha256 || "verified.patch"})` : "—"}</span></div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                ${prUrl ? `<a class="btn btn-sm btn-primary" href="${esc(prUrl)}" target="_blank" rel="noopener">${tr("Mở Pull Request", "Open Pull Request")} ↗</a>` : ""}
+                <button type="button" class="btn btn-sm" data-retry-task="${esc(selected.task_id || selected.id)}" data-retry-step="4" data-retry-run="${esc(run?.run_id || "")}">↻ ${esc(tr("Chạy lại kiểm định Bước 4", "Re-run Step 4 Verification"))}</button>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      return `<div class="tasks-pipeline-split">
+        <div class="tasks-master-col">${leftHtml}</div>
+        <div class="tasks-detail-col">${rightHtml}</div>
+      </div>`;
     }
 
     function renderProjectsView() {
@@ -4327,16 +4849,21 @@
       consoleLinksEl.innerHTML = linkParts.join("");
 
       document.querySelectorAll("#pd-subtabs .subtab-btn").forEach((b) => {
-        const mapped = (state.projectSubtab === "cycles" || state.projectSubtab === "prs") ? "verifications" : state.projectSubtab;
+        const mapped = (state.projectSubtab === "verifications" || state.projectSubtab === "prs")
+          ? "verification"
+          : (state.projectSubtab === "pipeline" || state.projectSubtab === "cycles" || state.projectSubtab === "activity")
+            ? "tasks"
+            : state.projectSubtab;
         b.classList.toggle("active", b.dataset.subtab === mapped);
       });
 
       const body = document.getElementById("pd-subtab-body");
-      if (!state.taskViews.has(pd.project.key)) state.taskViews.set(pd.project.key, {taskId: null, taskTab: "overview", stage: 1, expanded: false, filter: "all", detail: false, runId: null});
+      if (!state.taskViews.has(pd.project.key)) state.taskViews.set(pd.project.key, {taskId: null, taskTab: "overview", stage: 1, expanded: false, filter: "all", platformFilter: "all", issuePlatform: "all", detail: false, runId: null});
       const view = state.taskViews.get(pd.project.key);
       const pickTask = id => {
         const task = pd.recent_tasks.find(item => item.id === id || item.task_id === id);
         view.taskId = task?.id || null;
+        view.runId = null;
         view.taskTab = "overview";
         state.projectSubtab = "tasks";
         view.detail = !!task;
@@ -4348,34 +4875,77 @@
         if (last) view.stage = Number(last.step_number ?? last.step) === 4 ? 4 : 3;
         view.expanded = view.stage === 3;
         renderProjectsView();
-        body.querySelector(".task-heading h3")?.focus();
       };
       if (state.projectSubtab === "overview") {
         body.innerHTML = projectSummary(pd);
-      } else if (state.projectSubtab === "tasks") {
+      } else if (state.projectSubtab === "tasks" || state.projectSubtab === "pipeline" || state.projectSubtab === "cycles" || state.projectSubtab === "activity") {
         const allTasks = pd.recent_tasks || [];
-        const detailOpen = view.detail && allTasks.some(task => task.id === view.taskId);
+        const filteredTasks = filterTasksByView(allTasks, view);
+        if (!view.taskId || !filteredTasks.some((task) => task.id === view.taskId)) {
+          view.taskId = filteredTasks[0]?.id || allTasks[0]?.id || null;
+        }
+        const selectedRun = view.runId ? (pd.cycles || []).find((r) => r.run_id === view.runId) : null;
+        const selectedTask = allTasks.find((task) => task.id === view.taskId) || null;
+        const vi = state.lang === "vi";
+        const rightPaneHtml = selectedRun
+          ? renderRunDetailCard(pd, selectedRun, selectedTask)
+          : (selectedTask
+              ? renderTaskWorkflow(pd, view)
+              : `<section class="card"><div class="empty-state">${esc(vi ? "Chọn 1 tác vụ ở cột bên trái để theo dõi Pipeline 4 bước (3.1 → 3.4)." : "Select a task on the left to inspect its 4-step pipeline (3.1 → 3.4).")}</div></section>`);
+        const allIssues = pd.issues || [];
+        const issuePlatform = view.issuePlatform || "all";
+        const platformOrder = ["android", "ios", "web", "flutter", "unknown"];
+        const platformCounts = new Map();
+        for (const iss of allIssues) {
+          const pl = String(iss.platform || "unknown").toLowerCase();
+          platformCounts.set(pl, (platformCounts.get(pl) || 0) + 1);
+        }
+        const availablePlatforms = [...platformCounts.keys()].sort((a, b) => {
+          const ia = platformOrder.indexOf(a);
+          const ib = platformOrder.indexOf(b);
+          return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+        });
+        const activePlatform = issuePlatform !== "all" && platformCounts.has(issuePlatform) ? issuePlatform : "all";
+        const filteredIssues = activePlatform === "all"
+          ? allIssues
+          : allIssues.filter((iss) => String(iss.platform || "unknown").toLowerCase() === activePlatform);
+        const platLabel = (pl) => ({ android: "Android", ios: "iOS", web: "Web", flutter: "Flutter", unknown: "Other" }[pl] || pl);
+        const allLbl = state.lang === "vi" ? "Tất cả" : "All";
         body.innerHTML = `
-          ${detailOpen ? renderTaskWorkflow(pd, view) : taskInbox(allTasks, view)}
-          ${(!detailOpen && pd.issues?.length) ? `
+          <div class="tasks-pipeline-split">
+            <div class="tasks-master-col">${taskInbox(allTasks, view)}</div>
+            <div class="tasks-detail-col">${rightPaneHtml}</div>
+          </div>
+          ${allIssues.length ? `
             <div class="card">
-              <div class="card-header"><h3 class="card-title">Crashlytics (${pd.issues.length})</h3></div>
-              ${pd.issues.length ? `
+              <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <h3 class="card-title">Crashlytics (${filteredIssues.length}${activePlatform !== "all" ? ` / ${allIssues.length}` : ""})</h3>
+                <select class="select" id="issue-platform-filter" aria-label="${esc(t("lbl_platform"))}" style="width:auto;min-width:175px;padding:6px 10px;font-size:13px;">
+                  <option value="all" ${activePlatform === "all" ? "selected" : ""}>${esc(t("lbl_platform"))}: ${esc(allLbl)} (${allIssues.length})</option>
+                  ${availablePlatforms.map((pl) => `
+                    <option value="${esc(pl)}" ${activePlatform === pl ? "selected" : ""}>${esc(t("lbl_platform"))}: ${esc(platLabel(pl))} (${platformCounts.get(pl)})</option>
+                  `).join("")}
+                </select>
+              </div>
+              ${filteredIssues.length ? `
                 <div class="table-wrap">
                   <table>
-                    <thead><tr><th>Issue</th><th>Type</th><th class="num">Events</th><th class="num">Users</th></tr></thead>
+                    <thead><tr><th>Issue</th><th>${esc(t("lbl_platform"))}</th><th>Type</th><th class="num">Events</th><th class="num">Users</th></tr></thead>
                     <tbody>
-                      ${pd.issues.map((iss) => `
+                      ${filteredIssues.map((iss) => {
+                        const pl = String(iss.platform || "unknown").toLowerCase();
+                        return `
                         <tr class="clickable" data-issue-id="${esc(iss.issue_id)}">
                           <td>
                             <div style="font-weight:600;">${esc(iss.title)}</div>
                             <div style="font-size:12px;color:var(--ink-muted);">${esc((iss.subtitle || "").slice(0, 110))}</div>
                           </td>
+                          <td><span class="badge">${esc(platLabel(pl))}</span></td>
                           <td><span class="badge ${iss.issue_type === "fatal" ? "badge-danger" : "badge-warn"}">${esc(iss.issue_type)}</span></td>
                           <td class="num">${iss.events_count}</td>
                           <td class="num">${iss.users_count}</td>
-                        </tr>
-                      `).join("")}
+                        </tr>`;
+                      }).join("")}
                     </tbody>
                   </table>
                 </div>
@@ -4384,18 +4954,132 @@
             </div>
           ` : ""}
         `;
+        document.getElementById("task-status-filter")?.addEventListener("change", (e) => {
+          view.filter = e.currentTarget.value || "all";
+          view.runId = null;
+          renderProjectsView();
+        });
+        document.getElementById("task-platform-filter")?.addEventListener("change", (e) => {
+          const pl = e.currentTarget.value || "all";
+          view.platformFilter = pl;
+          view.issuePlatform = pl === "general" ? "all" : pl;
+          view.runId = null;
+          renderProjectsView();
+        });
+        document.getElementById("run-filtered-tasks-btn")?.addEventListener("click", async (e) => {
+          const btn = e.currentTarget;
+          const filtered = filterTasksByView(allTasks, view);
+          const clusterIds = filtered.map((task) => task.cluster_id || task.id).filter(Boolean);
+          if (!clusterIds.length) return;
+          btn.disabled = true;
+          try {
+            const res = await api(`/api/projects/${encodeURIComponent(pd.project.key)}/tasks/run-filtered`, {
+              method: "POST",
+              body: JSON.stringify({ cluster_ids: clusterIds }),
+            });
+            showToast(res.queued
+              ? (vi ? `Đã xếp hàng chạy ${res.count} tác vụ theo danh sách lọc.` : `Queued ${res.count} filtered task(s).`)
+              : t("toast_cycle_busy"));
+            await refreshData();
+          } catch (err) {
+            showToast(err.message);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+        document.getElementById("issue-platform-filter")?.addEventListener("change", (e) => {
+          const pl = e.currentTarget.value || "all";
+          view.issuePlatform = pl;
+          view.platformFilter = pl;
+          view.runId = null;
+          renderProjectsView();
+        });
+        document.getElementById("task-workflow-status-select")?.addEventListener("change", async (e) => {
+          const sel = e.currentTarget;
+          const ref = sel.dataset.taskRef;
+          const nextWf = sel.value;
+          try {
+            await api(`/api/tasks/${encodeURIComponent(ref)}`, {
+              method: "PATCH",
+              body: JSON.stringify({ workflow_status: nextWf }),
+            });
+            showToast(vi ? `Đã chuyển trạng thái → ${nextWf}` : `Status updated → ${nextWf}`);
+            await refreshData();
+          } catch (err) {
+            showToast(err.message);
+          }
+        });
+        body.querySelectorAll("[data-retry-step]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const ref = btn.dataset.retryTask;
+            const fromStep = Number(btn.dataset.retryStep || 1);
+            const runId = btn.dataset.retryRun || "";
+            btn.disabled = true;
+            try {
+              const res = await api(`/api/tasks/${encodeURIComponent(ref)}/retry-step?project_key=${encodeURIComponent(pd.project.key)}`, {
+                method: "POST",
+                body: JSON.stringify({ from_step: fromStep, run_id: runId }),
+              });
+              showToast(res.resumed
+                ? (vi ? `Đang chạy tiếp từ Bước 3.${res.from_step} (không chạy lại từ đầu)...` : `Resuming from Step 3.${res.from_step}...`)
+                : (vi ? "Đã mở lại tác vụ để chạy lại." : "Task reopened and queued."));
+              await refreshData();
+            } catch (err) {
+              showToast(err.message);
+            } finally {
+              btn.disabled = false;
+            }
+          });
+        });
+        body.querySelectorAll("[data-goto-subtab]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const targetSub = btn.dataset.gotoSubtab;
+            const tid = btn.dataset.gotoTask;
+            if (targetSub === "verification" && tid) view.b4TaskId = tid;
+            if (targetSub === "tasks" && tid) view.taskId = tid;
+            state.projectSubtab = targetSub;
+            renderProjectsView();
+          });
+        });
         body.querySelectorAll("[data-issue-id]").forEach((row) => {
           row.addEventListener("click", () => loadIssueInline(row.dataset.issueId, pd.project.key));
         });
-      } else if (state.projectSubtab === "verifications" || state.projectSubtab === "cycles" || state.projectSubtab === "prs") {
-        body.innerHTML = verificationsPanel(pd, view);
-        body.querySelectorAll("[data-create-pr-cluster]").forEach((btn) => {
+      } else if (state.projectSubtab === "verification" || state.projectSubtab === "verifications" || state.projectSubtab === "prs") {
+        const vi = state.lang === "vi";
+        body.innerHTML = stage4VerificationTab(pd, view);
+        document.getElementById("b4-status-filter")?.addEventListener("change", (e) => {
+          view.b4Filter = e.currentTarget.value || "all";
+          renderProjectsView();
+        });
+        body.querySelectorAll("[data-pick-b4-task]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            view.b4TaskId = btn.dataset.pickB4Task;
+            renderProjectsView();
+          });
+        });
+        body.querySelectorAll("[data-goto-subtab]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const targetSub = btn.dataset.gotoSubtab;
+            const tid = btn.dataset.gotoTask;
+            if (targetSub === "tasks" && tid) view.taskId = tid;
+            state.projectSubtab = targetSub;
+            renderProjectsView();
+          });
+        });
+        body.querySelectorAll("[data-retry-step]").forEach((btn) => {
           btn.addEventListener("click", async () => {
+            const ref = btn.dataset.retryTask;
+            const fromStep = Number(btn.dataset.retryStep || 4);
+            const runId = btn.dataset.retryRun || "";
             btn.disabled = true;
             try {
-              const cid = btn.dataset.createPrCluster;
-              const res = await api(`/api/runs/${encodeURIComponent(cid)}/retry?project_key=${encodeURIComponent(pd.project.key)}`, { method: "POST" });
-              showToast(res.queued ? t("toast_cycle_queued") : t("toast_cycle_busy"));
+              const res = await api(`/api/tasks/${encodeURIComponent(ref)}/retry-step?project_key=${encodeURIComponent(pd.project.key)}`, {
+                method: "POST",
+                body: JSON.stringify({ from_step: fromStep, run_id: runId }),
+              });
+              showToast(res.resumed
+                ? (vi ? `Đang chạy tiếp Bước ${res.from_step}...` : `Resuming Step ${res.from_step}...`)
+                : (vi ? "Đã mở lại tác vụ để chạy lại." : "Task reopened and queued."));
               await refreshData();
             } catch (err) {
               showToast(err.message);
@@ -4500,6 +5184,20 @@
                 <label>${esc(t("lbl_platform"))}</label>
                 <select class="select" id="ep-platform">
                   ${["flutter", "android", "ios", "web", "python"].map((pl) => `<option value="${pl}" ${p.platform === pl ? "selected" : ""}>${pl}</option>`).join("")}
+                </select>
+              </div>
+              <div class="field field-full">
+                <label for="ep-backend">${esc(t("lbl_crashlytics_backend"))}</label>
+                <select class="select" id="ep-backend">
+                  ${(() => {
+                    const cur = p.crashlytics_backend || p.effective_crashlytics_backend || "firebase_cli";
+                    const opts = [
+                      ["firebase_cli", state.lang === "vi" ? "Firebase CLI (MCP) — Khuyên dùng" : "Firebase CLI (MCP) — Recommended"],
+                      ["browser", "Browser (Playwright)"],
+                      ["api", "Crashlytics REST API (gcloud ADC)"],
+                    ];
+                    return opts.map(([val, label]) => `<option value="${val}" ${cur === val ? "selected" : ""}>${esc(label)}</option>`).join("");
+                  })()}
                 </select>
               </div>
               <div class="field field-full" id="ep-url-single-wrap" style="${p.platform === "flutter" ? "display:none;" : ""}">
@@ -4614,6 +5312,7 @@
               body: JSON.stringify({
                 name: document.getElementById("ep-name").value.trim(),
                 firebase_project_id: document.getElementById("ep-fb").value.trim(),
+                crashlytics_backend: document.getElementById("ep-backend").value,
                 platform: plat,
                 console_url: plat === "flutter" ? (urlAnd || urlIos || urlSingle) : urlSingle,
                 console_url_ios: plat === "flutter" ? urlIos : "",
@@ -5889,7 +6588,7 @@
         btn.addEventListener("click", () => {
           state.projectSubtab = btn.dataset.subtab;
           const taskView = state.taskViews.get(state.selectedProjectKey);
-          if (taskView && (state.projectSubtab === "verifications" || state.projectSubtab === "cycles")) taskView.runId = null;
+          if (taskView && (state.projectSubtab === "pipeline" || state.projectSubtab === "verifications" || state.projectSubtab === "cycles")) taskView.runId = null;
           if (taskView && state.projectSubtab === "tasks") taskView.detail = false;
           renderProjectsView();
         });
@@ -5947,6 +6646,7 @@
               key,
               name: document.getElementById("mp-name").value.trim(),
               firebase_project_id: document.getElementById("mp-fb").value.trim(),
+              crashlytics_backend: document.getElementById("mp-backend").value,
               platform: plat,
               console_url: plat === "flutter" ? (urlAnd || urlIos || urlSingle) : urlSingle,
               console_url_ios: plat === "flutter" ? urlIos : "",

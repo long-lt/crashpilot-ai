@@ -2,6 +2,8 @@ projects:
 - key: example_app
   name: Example App
   firebase_project_id: REPLACE_WITH_FIREBASE_PROJECT_ID
+  # Optional. Restrict sync to specific Firebase App IDs. Empty uses app discovery.
+  firebase_app_ids: []
   enabled: false
   scan_interval_minutes: 60
   console_url: ''

@@ -1,8 +1,6 @@
-# CrashPilot AI — Phase 1
+# CrashPilot AI
 
-Local macOS starter scaffold for browser-based Firebase Console access.
-Phase 1 verifies persistent browser authentication and navigation to configured
-Firebase Crashlytics project pages. It does **not** extract crash records yet.
+Local macOS dashboard and automation for Firebase Crashlytics and repository diagnostics.
 
 ## Requirements
 
@@ -32,58 +30,27 @@ To configure projects by hand, copy `config/projects.example.yaml` to
 the project and its input sources. Git ignores the local configuration. Keep project
 keys unique and keep credentials out of the YAML file.
 
-## First login and browser verification
+## Connect Firebase Crashlytics
 
-For Crashlytics, use a Google account with Viewer access to the Firebase project,
-set its Firebase project ID, and enable the `crashlytics` source.
+Set the Firebase project ID and enable the `crashlytics` source in
+`config/projects.yaml`. CrashPilot resolves apps from any configured Crashlytics
+Console URLs. With no URLs, it discovers apps for the project's platform
+(Android and iOS for Flutter). To restrict collection to specific apps, set
+`firebase_app_ids` to a list of Firebase App IDs from Firebase Project Settings
+or from `firebase apps:list --project PROJECT_ID`.
+
+For local use, the default Crashlytics backend is **Firebase CLI** (`CRASHPILOT_CRASHLYTICS_BACKEND=firebase_cli`), which uses the official Firebase CLI MCP tools (`core,crashlytics`) without requiring Playwright or `gcloud`. Install Firebase CLI (`npm install -g firebase-tools@latest`) and sign in with a Google account that has read access to Crashlytics:
 
 ```bash
-playwright install chromium
-python -m app.main browser-check
+./run.sh login
+./run.sh sync --project YOUR_PROJECT_KEY --limit 5
 ```
 
-A Chromium window opens. Sign in to Google manually and complete any MFA challenge.
-Return to Terminal and press Enter. The tool navigates to each enabled project's
-Crashlytics console URL, prints the current URL/title and a short visible-text preview,
-and saves a screenshot under `data/snapshots/`.
+Alternatively, you can switch `CRASHPILOT_CRASHLYTICS_BACKEND` to:
+- `api`: Call the public Crashlytics REST API directly using Google Application Default Credentials (`gcloud auth application-default login` or environment ADC).
+- `browser`: Keep legacy Playwright browser collection (`python -m playwright install chromium`, then `./run.sh login`). Browser profiles and screenshots are stored locally, and the browser module remains intact for other platforms or web consoles.
 
-Verify the URL contains the expected Firebase Project ID and that the browser visibly
-shows the intended project. If Google requests reauthentication, complete it manually.
-
-## Security
-
-- `browser_profiles/` contains sensitive session data. Never commit or share it.
-- Use a dedicated macOS user account if practical.
-- Grant only read access to the Firebase projects.
-- Do not automate CAPTCHA or bypass Google security checks.
-- Do not use internal/private Google endpoints. Phase 1 uses normal browser navigation
-  and visible page content only.
-- Screenshots and page text may contain project names or operational data; protect them.
-
-## Phase 1 acceptance checklist
-
-- [ ] Chromium launches on macOS
-- [ ] Manual Google login completes
-- [ ] A second run reuses the browser session (if still valid)
-- [ ] Each enabled project opens the expected Crashlytics page
-- [ ] Project ID is verified in the resulting URL
-- [ ] Screenshot and diagnostic output are saved
-- [ ] No credentials or browser profile files are committed
-
-## Troubleshooting
-
-- `python3.12: command not found`: install Python 3.12 from python.org or via Homebrew.
-- Browser missing: run `playwright install chromium`.
-- Login repeats: Google session may have expired or require reauthentication.
-- Wrong project: disable it and verify the project ID and Console URL manually.
-- Access denied: ask a project owner to grant read-only Firebase access.
-
-## Next phase
-
-Only after Phase 1 works reliably, implement UI selectors for the visible Crashlytics
-issue list and issue detail pages. Validate selectors against real pages before enabling
-collection. Do not infer issue data from screenshots when structured visible DOM text
-is available.
+The scheduled cycle and manual sync import Firebase issue IDs, counts from Crashlytics' default seven-day `topIssues` report, and one recent event for each of the top issues selected by `--limit` per app. Collection writes to SQLite and makes no AI calls. Use `--skip-crashlytics-sync` on a cycle to use the existing local data.
 
 ### Local dashboard and Live execution
 

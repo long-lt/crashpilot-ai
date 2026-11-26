@@ -6,22 +6,23 @@ from app.db.database import SessionLocal, init_db
 from app.db.repository import get_all_issues
 
 
-def list_issues(project_key: str | None = None):
+def list_issues(project_key: str | None = None, platform: str | None = None):
     init_db()
     db = SessionLocal()
     try:
-        issues = get_all_issues(db, project_key)
+        issues = get_all_issues(db, project_key, platform=platform)
         if not issues:
             print("\nNo issues found in local database. Run 'python -m app.main sync' first.\n")
             return
 
         print(f"\nFound {len(issues)} issues in database:")
-        print(f"{'PROJECT':<12} | {'ISSUE ID':<20} | {'EVENTS':<8} | {'USERS':<8} | {'TYPE':<10} | {'TITLE'}")
-        print("-" * 90)
+        print(f"{'PROJECT':<12} | {'PLATFORM':<9} | {'ISSUE ID':<20} | {'EVENTS':<8} | {'USERS':<8} | {'TYPE':<10} | {'TITLE'}")
+        print("-" * 104)
         for iss in issues:
             title = iss.title.replace("\n", " ")[:45]
-            print(f"{iss.project_key:<12} | {iss.issue_id:<20} | {iss.events_count:<8} | {iss.users_count:<8} | {iss.issue_type:<10} | {title}")
-        print("-" * 90)
+            plat = (iss.platform or "unknown").lower()
+            print(f"{iss.project_key:<12} | {plat:<9} | {iss.issue_id:<20} | {iss.events_count:<8} | {iss.users_count:<8} | {iss.issue_type:<10} | {title}")
+        print("-" * 104)
     finally:
         db.close()
 
@@ -77,9 +78,47 @@ def show_issue(issue_id: str, project_key: str | None = None):
 async def check_session() -> int:
     from app.browser.extractor import CrashlyticsExtractor
     from app.browser.session import FirebaseBrowser
-    from app.config import Settings
+    from app.config import (
+        Settings,
+        get_project_console_urls,
+        load_projects,
+        project_sources,
+        resolve_crashlytics_backend,
+    )
 
     settings = Settings()
+    crashlytics_projects = [
+        p
+        for p in load_projects()
+        if any(s.get("type", "").lower() == "crashlytics" for s in project_sources(p))
+        and (
+            p.get("firebase_project_id")
+            or p.get("firebase_app_ids")
+            or get_project_console_urls(p)
+        )
+    ]
+    if not crashlytics_projects:
+        return 0
+
+    backends = {resolve_crashlytics_backend(p, settings) for p in crashlytics_projects}
+    if "firebase_cli" in backends:
+        from app.firebase_cli import FirebaseCliClient, FirebaseCliError
+
+        try:
+            with FirebaseCliClient() as client:
+                ok, info = client.check_auth()
+            if ok:
+                print(f"Firebase CLI session: OK ({info})")
+            else:
+                print(f"Firebase CLI session: LOGIN REQUIRED ({info})")
+                return 2
+        except FirebaseCliError as exc:
+            print(f"Firebase CLI session: LOGIN REQUIRED ({exc})")
+            return 2
+
+    if "browser" not in backends:
+        return 0
+
     browser = FirebaseBrowser(settings.browser_profile, headless=True)
     page = await browser.start()
     try:
@@ -174,9 +213,19 @@ def doctor_cli():
 
     print("\n=========== CrashPilot AI — Doctor Check ===========")
     print("[1] Công cụ hệ thống:")
-    for tool in ("git", "gh", "flutter", "dart", "adb"):
+    for tool in ("git", "gh", "firebase", "npx", "flutter", "dart", "adb"):
         p = shutil.which(tool)
         print(f"  - {tool:<8}: {'OK (' + p + ')' if p else 'MISSING'}")
+
+    firebase_bin = shutil.which("firebase")
+    if firebase_bin:
+        fb_ver = subprocess.run([firebase_bin, "--version"], capture_output=True, text=True, check=False)
+        fb_auth = subprocess.run([firebase_bin, "login:list"], capture_output=True, text=True, check=False)
+        fb_user = next(
+            (line.strip() for line in fb_auth.stdout.splitlines() if "logged in" in line.lower()),
+            "CHƯA ĐĂNG NHẬP (chạy: ./run.sh login)",
+        )
+        print(f"  - firebase: v{fb_ver.stdout.strip() or '?'} | {fb_user}")
 
     gh = shutil.which("gh")
     if gh:
@@ -259,7 +308,8 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # browser-check
-    subparsers.add_parser("browser-check", help="Open browser to sign in to Google and verify project access")
+    subparsers.add_parser("browser-check", help="Verify legacy Firebase browser access")
+    subparsers.add_parser("login", help="Sign in for Crashlytics collection")
 
     # sync
     sync_parser = subparsers.add_parser("sync", help="Extract crash issues from Firebase Crashlytics into local DB")
@@ -273,12 +323,13 @@ def main():
     cycle_parser.add_argument("--project", default=None)
     cycle_parser.add_argument("--cluster", default=None)
     cycle_parser.add_argument("--headed", action="store_true", help="Mở trình duyệt có giao diện")
-    cycle_parser.add_argument("--skip-browser-sync", action="store_true", help="Bỏ qua bước mở trình duyệt, dùng dữ liệu DB hiện tại")
+    cycle_parser.add_argument("--skip-browser-sync", "--skip-crashlytics-sync", action="store_true", help="Dùng dữ liệu Crashlytics hiện có trong DB")
     cycle_parser.add_argument("--scheduled", action="store_true", help="Chỉ quét các dự án đã đến hạn scan_interval_minutes")
 
     # list-issues
     list_parser = subparsers.add_parser("list-issues", help="List all tracked crash issues from local DB")
     list_parser.add_argument("--project", "-p", help="Filter by project key", default=None)
+    list_parser.add_argument("--platform", help="Filter by platform (e.g. android, ios, web)", default=None)
 
     # show-issue
     show_parser = subparsers.add_parser("show-issue", help="Show full details and stack trace for an issue")
@@ -316,6 +367,11 @@ def main():
     exec_parser.add_argument("--repo", default=None, help="Đường dẫn repository local (mặc định lấy từ config/projects.yaml)")
     exec_parser.add_argument("--apply", action="store_true", help="Tắt dry-run (tách nhánh & chạy executor thật nếu có)")
 
+    # retry-task (Chạy tiếp từ bước lỗi, không chạy lại từ đầu)
+    retry_parser = subparsers.add_parser("retry-task", help="Chạy tiếp/retry một task từ bước lỗi (Bước 3 hoặc Bước 4) thay vì chạy lại từ đầu")
+    retry_parser.add_argument("task_ref", help="Mã task (VD: TASK-1012 hoặc task_id)")
+    retry_parser.add_argument("--from-step", type=int, default=3, choices=[3, 4], help="Bước bắt đầu chạy lại (3: Agent thực thi & checks cơ học, 4: Kiểm định độc lập & PR gate)")
+
     # check-session
     subparsers.add_parser("check-session", help="Headless check: exit 0 if Google session valid, 2 if login required")
 
@@ -334,6 +390,27 @@ def main():
 
     if args.command == "browser-check":
         asyncio.run(run_browser_check())
+    elif args.command == "login":
+        import shutil
+        import subprocess
+        from app.config import Settings
+
+        backend = Settings().crashlytics_backend
+        if backend == "browser":
+            asyncio.run(run_browser_check())
+        elif backend == "firebase_cli":
+            from app.firebase_cli import FirebaseCliError, resolve_firebase_login_command
+
+            try:
+                cmd = resolve_firebase_login_command()
+            except FirebaseCliError as exc:
+                raise SystemExit(str(exc)) from exc
+            raise SystemExit(subprocess.call(cmd))
+        else:
+            gcloud = shutil.which("gcloud")
+            if not gcloud:
+                raise SystemExit("Install the Google Cloud CLI (gcloud), then run ./run.sh login.")
+            raise SystemExit(subprocess.call([gcloud, "auth", "application-default", "login"]))
     elif args.command == "sync":
         import sys
         results = run_sync(project_key=args.project, headless=not args.headed, fetch_details_limit=args.limit)
@@ -369,7 +446,7 @@ def main():
         if any(r.overall_status in FAILED_RUN_STATUSES for r in summary.runs):
             sys.exit(1)
     elif args.command == "list-issues":
-        list_issues(project_key=args.project)
+        list_issues(project_key=args.project, platform=args.platform)
     elif args.command == "show-issue":
         show_issue(issue_id=args.issue_id, project_key=args.project)
     elif args.command == "diagnose":
@@ -404,6 +481,83 @@ def main():
                     print(f"    Nguồn phát hiện: {', '.join(p['source_runs'][:3])}")
     elif args.command == "execute":
         execute_cluster_cli(cluster_id=args.cluster_id, repo_path=args.repo, apply_changes=args.apply)
+    elif args.command == "retry-task":
+        import sys
+        from pathlib import Path
+        from app.db.database import get_db
+        from app.db.models import TaskModel
+        from app.context_collector import EventBufferQueue
+        from app.context_collector.base import EventCluster
+        from app.constrained_runner import ConstrainedFourStepRunner, ConstraintConfig
+        from app.config import load_all_projects
+        from app.db.database import SessionLocal
+
+        with SessionLocal() as db:
+            task = (
+                db.query(TaskModel)
+                .filter((TaskModel.task_id == args.task_ref) | (TaskModel.cluster_id == args.task_ref))
+                .first()
+            )
+            if not task:
+                print(f"Lỗi: Không tìm thấy task '{args.task_ref}' trong cơ sở dữ liệu.")
+                sys.exit(1)
+
+            cluster = None
+            queue = EventBufferQueue()
+            clusters = {c.cluster_id: c for c in queue.load()}
+            if task.cluster_id:
+                cluster = clusters.get(task.cluster_id)
+
+            if not cluster and task.latest_run_id:
+                run_dir = Path("data/runs") / str(task.latest_run_id)
+                cev = run_dir / "cluster_events.json"
+                if cev.is_file():
+                    try:
+                        cluster = EventCluster.model_validate_json(cev.read_text(encoding="utf-8"))
+                    except Exception:
+                        cluster = None
+
+            if not cluster:
+                # Nếu cluster không có trong file events, tạo một cluster tối thiểu từ thông tin của task
+                cluster = EventCluster(
+                    cluster_id=task.cluster_id or f"cls_{task.task_id}",
+                    project_key=task.project_key,
+                    events=[],
+                    title=task.title or task.task_id,
+                )
+
+            from app.constrained_runner.models import RuntimeVerifierConfig
+
+            project_cfg = next((p for p in load_all_projects() if p.get("key") == task.project_key), {})
+            exec_cfg = project_cfg.get("execution", {})
+            repo_path = project_cfg.get("repository_path")
+            rv_raw = exec_cfg.get("runtime_verifier")
+            runtime_verifier = RuntimeVerifierConfig.model_validate(rv_raw) if isinstance(rv_raw, dict) else None
+            cfg = ConstraintConfig(
+                repository_path=repo_path or "",
+                base_branch=str(exec_cfg.get("base_branch", "main")),
+                dry_run=bool(exec_cfg.get("dry_run", True)),
+                **{key: exec_cfg[key] for key in ("protected_branches", "forbidden_path_patterns") if key in exec_cfg},
+                mechanical_checks=exec_cfg.get("mechanical_checks") or [],
+                verify_commands=exec_cfg.get("verify_commands") or [],
+                runtime_verifier=runtime_verifier,
+                executor_command=exec_cfg.get("executor_command"),
+                verifier_command=exec_cfg.get("verifier_command"),
+                max_retries=int(exec_cfg.get("max_retries", 1)),
+                auto_create_pr=bool(exec_cfg.get("auto_create_pr", False)),
+                auto_merge=bool(exec_cfg.get("auto_merge", False)),
+            )
+            runner = ConstrainedFourStepRunner()
+            print(f"[*] Bắt đầu retry cho {task.task_id} từ Bước {args.from_step}/4 (run: {task.latest_run_id})...")
+            report = runner.resume_from_step(
+                run_id=task.latest_run_id or f"run_{task.cluster_id}",
+                cluster=cluster,
+                config=cfg,
+                from_step=args.from_step,
+                task_id=task.task_id,
+            )
+            print(f"[+] Kết quả retry: overall_status={report.overall_status}")
+            sys.exit(0 if report.overall_status in {"VERIFIED_READY_FOR_PR", "PR_CREATED", "AUTO_MERGED"} else 1)
     elif args.command == "check-session":
         import sys
         sys.exit(asyncio.run(check_session()))
