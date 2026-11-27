@@ -1,0 +1,128 @@
+name: 4B Flutter iOS VM verification
+
+on:
+  push:
+    branches: [codex/4b-ios-vm-probe]
+    paths: [.github/workflows/ios-4b-vm-probe.yml]
+
+permissions: {}
+
+jobs:
+  verify-sample:
+    runs-on: macos-26
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI: "true"
+      FLUTTER_SUPPRESS_ANALYTICS: "true"
+      FLUTTER_VERSION: "3.47.6"
+      FLUTTER_REVISION: "5fc346839b5d0eef006ed8404392afb4dfae428d"
+    steps:
+      - name: Identify hosted macOS VM and install pinned Flutter
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$(uname -m)" = arm64
+          sw_vers
+          /usr/sbin/sysctl -n hw.model
+          xcodebuild -version
+          git clone --quiet --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "$FLUTTER_REVISION"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --ios
+
+      - name: Boot an available iPhone Simulator
+        run: |
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/ios-devices.json"
+          python3 - "$RUNNER_TEMP/ios-devices.json" "$GITHUB_ENV" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          devices = json.loads(Path(sys.argv[1]).read_text())["devices"]
+          runtimes = [
+              (tuple(map(int, name.rsplit(".iOS-", 1)[1].split("-"))), entries)
+              for name, entries in devices.items() if ".iOS-" in name
+          ]
+          for version, entries in sorted(runtimes, key=lambda pair: pair[0], reverse=True):
+              for device in entries:
+                  if device["isAvailable"] and device["name"].startswith("iPhone"):
+                      with open(sys.argv[2], "a", encoding="utf-8") as env:
+                          env.write(f'IOS_SIMULATOR_ID={device["udid"]}\n')
+                      print("iOS Simulator:", device["name"], ".".join(map(str, version)))
+                      raise SystemExit(0)
+          raise SystemExit("No available iPhone Simulator")
+          PY
+
+      - name: Create synthetic Flutter sample
+        run: |
+          flutter create --no-pub --platforms=ios --org dev.crashpilot.probe --project-name sample_app "$RUNNER_TEMP/sample_app"
+          cd "$RUNNER_TEMP/sample_app"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("pubspec.yaml")
+          text = manifest.read_text()
+          assert text.count("\ndev_dependencies:\n") == 1
+          manifest.write_text(text.replace(
+              "\ndev_dependencies:\n",
+              "\ndev_dependencies:\n  integration_test:\n    sdk: flutter\n",
+              1,
+          ))
+          PY
+          mkdir integration_test
+          cat > integration_test/counter_test.dart <<'DART'
+          import 'package:flutter_test/flutter_test.dart';
+          import 'package:integration_test/integration_test.dart';
+          import 'package:sample_app/main.dart' as app;
+
+          void main() {
+            IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+            testWidgets('tap updates the counter on iOS', (tester) async {
+              app.main();
+              await tester.pumpAndSettle();
+              expect(find.text('0'), findsOneWidget);
+
+              await tester.tap(find.byTooltip('Increment'));
+              await tester.pumpAndSettle();
+
+              expect(find.text('0'), findsNothing);
+              expect(find.text('1'), findsOneWidget);
+            });
+          }
+          DART
+          flutter pub get
+
+      - name: Build iOS debug application
+        run: |
+          cd "$RUNNER_TEMP/sample_app"
+          flutter build ios --simulator --debug --no-pub
+          app_path="$PWD/build/ios/iphonesimulator/Runner.app"
+          test -x "$app_path/Runner"
+          bundle_id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app_path/Info.plist")
+          echo "IOS_SAMPLE_BUNDLE=$bundle_id" >> "$GITHUB_ENV"
+
+      - name: Install and smoke-test the Simulator application
+        run: |
+          if ! xcrun simctl list devices booted | grep -F "$IOS_SIMULATOR_ID"; then
+            xcrun simctl boot "$IOS_SIMULATOR_ID"
+          fi
+          xcrun simctl bootstatus "$IOS_SIMULATOR_ID" -b
+          xcrun simctl install "$IOS_SIMULATOR_ID" "$RUNNER_TEMP/sample_app/build/ios/iphonesimulator/Runner.app"
+          launch=$(xcrun simctl launch "$IOS_SIMULATOR_ID" "$IOS_SAMPLE_BUNDLE")
+          echo "$launch"
+          app_pid=${launch##*: }
+          [[ "$app_pid" =~ ^[0-9]+$ ]]
+          sleep 4
+          kill -0 "$app_pid"
+          xcrun simctl io "$IOS_SIMULATOR_ID" screenshot "$RUNNER_TEMP/flutter-ios-sample.png"
+          test -s "$RUNNER_TEMP/flutter-ios-sample.png"
+          xcrun simctl terminate "$IOS_SIMULATOR_ID" "$IOS_SAMPLE_BUNDLE"
+
+      - name: Run Flutter integration test on the iPhone Simulator
+        run: |
+          cd "$RUNNER_TEMP/sample_app"
+          flutter test integration_test/counter_test.dart -d "$IOS_SIMULATOR_ID" --no-pub --reporter expanded
